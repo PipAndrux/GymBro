@@ -197,7 +197,7 @@ export default function ProfilePage() {
         <div className="card" style={{ padding: 14, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
           <Info size={18} style={{ color: 'rgb(var(--color-text-muted))', flexShrink: 0, marginTop: 1 }} />
           <div style={{ fontSize: 13, color: 'rgb(var(--color-text-muted))', lineHeight: 1.6 }}>
-            <strong style={{ color: 'rgb(var(--color-text))' }}>Fit Tracker</strong> — personal PWA, v1.0
+            <strong style={{ color: 'rgb(var(--color-text))' }}>GymBro</strong> — personal PWA, v2.0
             <br />
             On iOS: install via Safari → Share → Add to Home Screen. Rest-timer alerts only fire reliably while the app is open and on screen — background and lock-screen firing is not guaranteed.
           </div>

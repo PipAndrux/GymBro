@@ -83,7 +83,9 @@ export default function App() {
           >
             {({ isActive }) => (
               <>
-                <Icon size={22} strokeWidth={isActive ? 2.2 : 1.8} />
+                <div className="tab-icon-wrap">
+                  <Icon size={20} strokeWidth={isActive ? 2.4 : 1.8} />
+                </div>
                 <span>{label}</span>
               </>
             )}

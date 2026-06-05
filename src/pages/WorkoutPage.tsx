@@ -50,7 +50,7 @@ export default function WorkoutPage() {
       {/* Library + history */}
       <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         <button className="card nav-card" onClick={() => navigate('/exercises')}>
-          <div style={{ ...iconWrap, backgroundColor: 'rgba(99 102 241 / 0.12)' }}>
+          <div style={{ ...iconWrap, backgroundColor: 'rgba(34 197 94 / 0.12)' }}>
             <BookOpen size={22} style={{ color: 'rgb(var(--color-accent))' }} />
           </div>
           <div>

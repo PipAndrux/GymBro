@@ -13,7 +13,7 @@ export interface AppSettings {
 export const DEFAULT_SETTINGS: AppSettings = {
   units: 'kg',
   defaultRestSeconds: 90,
-  theme: 'system',
+  theme: 'dark',
 }
 
 export async function getSetting<K extends keyof AppSettings>(key: K): Promise<AppSettings[K]> {

@@ -40,7 +40,7 @@ export const MUSCLE_COLORS: Record<MuscleGroup, string> = {
   quads: '#22c55e',
   hamstrings: '#14b8a6',
   glutes: '#ec4899',
-  calves: '#6366f1',
+  calves: '#8b5cf6',
   core: '#06b6d4',
   cardio: '#94a3b8',
 }

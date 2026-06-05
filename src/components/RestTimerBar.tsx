@@ -62,7 +62,7 @@ export default function RestTimerBar() {
         >
           <div
             className="rest-bar-progress"
-            style={{ width: `${progress * 100}%`, background: reached ? '#22c55e' : 'rgb(var(--color-accent))' }}
+            style={{ width: `${progress * 100}%`, background: reached ? 'rgb(var(--color-accent))' : 'rgb(var(--color-accent-amber))' }}
           />
           <div className="rest-bar-inner">
             {reached ? (
