@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Search, Check } from 'lucide-react'
+import { Search, Check, Plus } from 'lucide-react'
 import { db } from '../db'
 import type { Exercise, MuscleGroup } from '../types'
 import { MUSCLE_FILTERS, MUSCLE_COLORS } from '../lib/exerciseMeta'
 import BottomSheet from './BottomSheet'
+import AddExerciseForm from './AddExerciseForm'
 
 interface ExercisePickerProps {
   open: boolean
@@ -26,6 +27,7 @@ export default function ExercisePicker({
   const [search, setSearch] = useState('')
   const [muscle, setMuscle] = useState<'all' | MuscleGroup>('all')
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [mode, setMode] = useState<'list' | 'create'>('list')
 
   // Live list of exercises (auto-updates if a custom exercise is added elsewhere).
   const all =
@@ -43,6 +45,7 @@ export default function ExercisePicker({
       setSelected(new Set())
       setSearch('')
       setMuscle('all')
+      setMode('list')
     }
   }
 
@@ -69,93 +72,113 @@ export default function ExercisePicker({
     setSelected(new Set())
   }
 
+  // Newly created custom exercise is auto-selected so confirming adds it.
+  function handleCreated(exercise: Exercise) {
+    setSelected(prev => new Set(prev).add(exercise.uuid))
+    setMode('list')
+  }
+
   return (
-    <BottomSheet open={open} onClose={onClose} title={title}>
-      <div style={{ position: 'relative', marginBottom: 10 }}>
-        <Search
-          size={16}
-          style={{
-            position: 'absolute',
-            left: 12,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            color: 'rgb(var(--color-text-muted))',
-            pointerEvents: 'none',
-          }}
-        />
-        <input
-          className="input"
-          placeholder="Search…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={{ paddingLeft: 38 }}
-        />
-      </div>
-
-      <div style={chipRow}>
-        {MUSCLE_FILTERS.map(f => (
-          <button
-            key={f.value}
-            onClick={() => setMuscle(f.value)}
-            style={{
-              flexShrink: 0,
-              border: 'none',
-              borderRadius: 100,
-              padding: '5px 12px',
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: 'pointer',
-              WebkitTapHighlightColor: 'transparent',
-              background: muscle === f.value ? 'rgb(var(--color-accent))' : 'rgb(var(--color-surface-2))',
-              color: muscle === f.value ? '#fff' : 'rgb(var(--color-text))',
-            }}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      <div style={listStyle}>
-        {filtered.length === 0 ? (
-          <div className="empty-state" style={{ padding: 32 }}>
-            <p>No exercises found.</p>
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title={mode === 'create' ? 'New Custom Exercise' : title}
+    >
+      {mode === 'create' ? (
+        <AddExerciseForm onSaved={handleCreated} onCancel={() => setMode('list')} />
+      ) : (
+        <>
+          <div style={{ position: 'relative', marginBottom: 10 }}>
+            <Search
+              size={16}
+              style={{
+                position: 'absolute',
+                left: 12,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'rgb(var(--color-text-muted))',
+                pointerEvents: 'none',
+              }}
+            />
+            <input
+              className="input"
+              placeholder="Search…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ paddingLeft: 38 }}
+            />
           </div>
-        ) : (
-          filtered.map(ex => {
-            const on = selected.has(ex.uuid)
-            const color = MUSCLE_COLORS[ex.primaryMuscle]
-            return (
-              <button
-                key={ex.uuid}
-                onClick={() => toggle(ex.uuid)}
-                className="pick-row"
-                style={{ borderColor: on ? 'rgb(var(--color-accent))' : 'transparent' }}
-              >
-                <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 15 }}>{ex.name}</div>
-                  <div style={{ display: 'flex', gap: 6, marginTop: 3 }}>
-                    <span style={{ ...tag, background: `${color}22`, color }}>{ex.primaryMuscle}</span>
-                    <span style={{ ...tag, background: 'rgb(var(--color-surface-2))', color: 'rgb(var(--color-text-muted))' }}>
-                      {ex.equipment}
-                    </span>
-                  </div>
-                </div>
-                <div className={`pick-check${on ? ' on' : ''}`}>{on && <Check size={15} />}</div>
-              </button>
-            )
-          })
-        )}
-      </div>
 
-      <button
-        className="btn btn-primary"
-        style={{ width: '100%', marginTop: 10 }}
-        disabled={selected.size === 0}
-        onClick={confirm}
-      >
-        {confirmLabel}
-        {selected.size > 0 ? ` (${selected.size})` : ''}
-      </button>
+          <div style={chipRow}>
+            {MUSCLE_FILTERS.map(f => (
+              <button
+                key={f.value}
+                onClick={() => setMuscle(f.value)}
+                style={{
+                  flexShrink: 0,
+                  border: 'none',
+                  borderRadius: 100,
+                  padding: '5px 12px',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  WebkitTapHighlightColor: 'transparent',
+                  background: muscle === f.value ? 'rgb(var(--color-accent))' : 'rgb(var(--color-surface-2))',
+                  color: muscle === f.value ? '#fff' : 'rgb(var(--color-text))',
+                }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          <button className="add-set" style={{ marginTop: 8 }} onClick={() => setMode('create')}>
+            <Plus size={16} /> Create custom exercise
+          </button>
+
+          <div style={listStyle}>
+            {filtered.length === 0 ? (
+              <div className="empty-state" style={{ padding: 32 }}>
+                <p>No exercises found.</p>
+              </div>
+            ) : (
+              filtered.map(ex => {
+                const on = selected.has(ex.uuid)
+                const color = MUSCLE_COLORS[ex.primaryMuscle]
+                return (
+                  <button
+                    key={ex.uuid}
+                    onClick={() => toggle(ex.uuid)}
+                    className="pick-row"
+                    style={{ borderColor: on ? 'rgb(var(--color-accent))' : 'transparent' }}
+                  >
+                    <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 15 }}>{ex.name}</div>
+                      <div style={{ display: 'flex', gap: 6, marginTop: 3 }}>
+                        <span style={{ ...tag, background: `${color}22`, color }}>{ex.primaryMuscle}</span>
+                        <span style={{ ...tag, background: 'rgb(var(--color-surface-2))', color: 'rgb(var(--color-text-muted))' }}>
+                          {ex.equipment}
+                        </span>
+                      </div>
+                    </div>
+                    <div className={`pick-check${on ? ' on' : ''}`}>{on && <Check size={15} />}</div>
+                  </button>
+                )
+              })
+            )}
+          </div>
+
+          <button
+            className="btn btn-primary"
+            style={{ width: '100%', marginTop: 10 }}
+            disabled={selected.size === 0}
+            onClick={confirm}
+          >
+            {confirmLabel}
+            {selected.size > 0 ? ` (${selected.size})` : ''}
+          </button>
+        </>
+      )}
     </BottomSheet>
   )
 }
