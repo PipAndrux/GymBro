@@ -1,0 +1,214 @@
+@import "tailwindcss";
+
+/* ─── Design tokens ─────────────────────────────────────── */
+:root {
+  --color-accent: 99 102 241;
+  --color-accent-dim: 67 56 202;
+  --color-bg: 255 255 255;
+  --color-surface: 248 248 248;
+  --color-surface-2: 237 237 237;
+  --color-border: 229 229 229;
+  --color-text: 17 17 17;
+  --color-text-muted: 115 115 115;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --tab-bar-height: 56px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: 10 10 10;
+    --color-surface: 20 20 20;
+    --color-surface-2: 32 32 32;
+    --color-border: 45 45 45;
+    --color-text: 245 245 245;
+    --color-text-muted: 160 160 160;
+  }
+}
+
+/* ─── Reset ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  height: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  font-family: -apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: rgb(var(--color-bg));
+  color: rgb(var(--color-text));
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+#root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Page content ──────────────────────────────────────── */
+.page-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-top: var(--safe-top);
+  padding-bottom: calc(var(--tab-bar-height) + var(--safe-bottom) + 16px);
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ─── Tab bar ───────────────────────────────────────────── */
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--tab-bar-height) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  background-color: rgb(var(--color-surface));
+  border-top: 1px solid rgb(var(--color-border));
+  display: flex;
+  align-items: stretch;
+  z-index: 50;
+}
+
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: rgb(var(--color-text-muted));
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  transition: color 0.15s ease, transform 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.tab-item.active { color: rgb(var(--color-accent)); }
+.tab-item:active { transform: scale(0.92); }
+
+/* ─── Cards ─────────────────────────────────────────────── */
+.card {
+  background-color: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+  padding: 16px;
+}
+
+/* ─── Buttons ───────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.btn:active { transform: scale(0.96); opacity: 0.85; }
+
+.btn-primary { background-color: rgb(var(--color-accent)); color: #fff; padding: 12px 20px; }
+.btn-secondary { background-color: rgb(var(--color-surface-2)); color: rgb(var(--color-text)); padding: 12px 20px; }
+.btn-ghost { background-color: transparent; color: rgb(var(--color-accent)); padding: 8px 12px; }
+
+/* ─── Bottom sheet ──────────────────────────────────────── */
+.sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0 0 0 / 0.45);
+  z-index: 100;
+}
+
+.sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: rgb(var(--color-surface));
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  padding: 20px 20px calc(20px + var(--safe-bottom));
+  z-index: 101;
+  max-height: 90vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sheet-handle {
+  width: 40px;
+  height: 4px;
+  background-color: rgb(var(--color-border));
+  border-radius: 2px;
+  margin: 0 auto 20px;
+}
+
+/* ─── Inputs ─────────────────────────────────────────────── */
+.input {
+  width: 100%;
+  background-color: rgb(var(--color-surface-2));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 15px;
+  color: rgb(var(--color-text));
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.input:focus { border-color: rgb(var(--color-accent)); }
+.input::placeholder { color: rgb(var(--color-text-muted)); }
+
+/* ─── Utility ────────────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 24px;
+  color: rgb(var(--color-text-muted));
+  text-align: center;
+}
+
+.empty-state p { margin: 0; font-size: 15px; }
+
+.section-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgb(var(--color-text-muted));
+  padding: 0 16px;
+  margin-bottom: 8px;
+}
+
+.page-header {
+  padding: 16px 16px 8px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
