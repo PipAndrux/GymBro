@@ -5,6 +5,7 @@ import WorkoutPage from './pages/WorkoutPage'
 import RoutinesPage from './pages/RoutinesPage'
 import FoodPage from './pages/FoodPage'
 import ProfilePage from './pages/ProfilePage'
+import ExercisesPage from './pages/ExercisesPage'
 
 const tabs = [
   { to: '/', label: 'Workout', Icon: Dumbbell },
@@ -36,6 +37,7 @@ export default function App() {
         >
           <Routes location={location}>
             <Route path="/" element={<WorkoutPage />} />
+            <Route path="/exercises" element={<ExercisesPage />} />
             <Route path="/routines" element={<RoutinesPage />} />
             <Route path="/food" element={<FoodPage />} />
             <Route path="/settings" element={<ProfilePage />} />
