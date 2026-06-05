@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Clock, Dumbbell } from 'lucide-react'
+import { ChevronLeft, Clock, Dumbbell, LineChart } from 'lucide-react'
 import { db } from '../db'
 import type { Exercise, WorkoutSet, Workout } from '../types'
 import { MUSCLE_COLORS } from '../lib/exerciseMeta'
@@ -108,7 +108,12 @@ export default function HistoryDetailPage() {
             {detail.groups.map(({ exercise, sets }, gi) => {
               const color = exercise ? MUSCLE_COLORS[exercise.primaryMuscle] : '#94a3b8'
               return (
-                <div key={exercise?.uuid ?? gi} className="card" style={{ padding: 14 }}>
+                <div
+                  key={exercise?.uuid ?? gi}
+                  className="card"
+                  style={{ padding: 14, cursor: exercise ? 'pointer' : 'default' }}
+                  onClick={exercise ? () => navigate(`/progress/${exercise.uuid}`) : undefined}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontWeight: 700, fontSize: 15 }}>{exercise?.name ?? 'Deleted exercise'}</span>
                     {exercise && (
@@ -125,6 +130,9 @@ export default function HistoryDetailPage() {
                       >
                         {exercise.primaryMuscle}
                       </span>
+                    )}
+                    {exercise && (
+                      <LineChart size={15} style={{ color: 'rgb(var(--color-text-muted))', marginLeft: 'auto', flexShrink: 0 }} />
                     )}
                   </div>
 

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import { Routes, Route, NavLink, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Dumbbell, ListOrdered, Apple, Settings } from 'lucide-react'
@@ -11,7 +11,13 @@ import SessionPage from './pages/SessionPage'
 import RoutineEditPage from './pages/RoutineEditPage'
 import HistoryPage from './pages/HistoryPage'
 import HistoryDetailPage from './pages/HistoryDetailPage'
+import WorkoutSummaryPage from './pages/WorkoutSummaryPage'
 import RestTimerBar from './components/RestTimerBar'
+
+// Progress screens pull in recharts (~280KB gzip) — load them on demand so the
+// core app and dashboard stay light and start instantly offline.
+const ProgressPage = lazy(() => import('./pages/ProgressPage'))
+const ExerciseProgressPage = lazy(() => import('./pages/ExerciseProgressPage'))
 import { useSession } from './store/sessionStore'
 import { useSettings } from './lib/settings'
 
@@ -56,6 +62,7 @@ export default function App() {
           transition={{ duration: 0.18, ease: 'easeInOut' }}
           style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
         >
+          <Suspense fallback={<div className="page-content" />}>
           <Routes location={location}>
             <Route path="/" element={<WorkoutPage />} />
             <Route path="/session" element={<SessionPage />} />
@@ -65,9 +72,13 @@ export default function App() {
             <Route path="/routines/:uuid" element={<RoutineEditPage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/history/:uuid" element={<HistoryDetailPage />} />
+            <Route path="/summary/:uuid" element={<WorkoutSummaryPage />} />
+            <Route path="/progress" element={<ProgressPage />} />
+            <Route path="/progress/:exerciseUuid" element={<ExerciseProgressPage />} />
             <Route path="/food" element={<FoodPage />} />
             <Route path="/settings" element={<ProfilePage />} />
           </Routes>
+          </Suspense>
         </motion.div>
       </AnimatePresence>
 

@@ -37,6 +37,7 @@ export default function SessionPage() {
   const removeSet = useSession(s => s.removeSet)
   const finishWorkout = useSession(s => s.finishWorkout)
   const discardWorkout = useSession(s => s.discardWorkout)
+  const prFlags = useSession(s => s.prFlags)
 
   const { units } = useSettings()
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -74,9 +75,10 @@ export default function SessionPage() {
   const completedCount = sets.filter(s => s.completedAt).length
 
   async function doFinish() {
-    await finishWorkout()
+    const finished = await finishWorkout()
     setConfirm(null)
-    navigate('/')
+    if (finished) navigate(`/summary/${finished.uuid}`, { replace: true })
+    else navigate('/')
   }
   async function doDiscard() {
     await discardWorkout()
@@ -178,6 +180,7 @@ export default function SessionPage() {
                     key={s.uuid}
                     set={s}
                     index={i}
+                    pr={prFlags[s.uuid]}
                     onChange={patch => updateSet(s.uuid, patch)}
                     onToggle={() => toggleSetComplete(s.uuid)}
                     onRemove={() => removeSet(s.uuid)}

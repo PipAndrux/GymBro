@@ -1,12 +1,13 @@
 import { useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Play, BookOpen, History, Flame, ChevronRight, Check, Apple } from 'lucide-react'
+import { Plus, Play, BookOpen, History, Flame, ChevronRight, Check, Apple, Trophy, TrendingUp } from 'lucide-react'
 import { db } from '../db'
 import { useSession } from '../store/sessionStore'
 import { useSettings } from '../lib/settings'
 import { macrosForGrams, todayStr, DEFAULT_GOALS } from '../lib/foodCalc'
 import { formatDurationShort, formatVolume, formatDateLong } from '../lib/format'
+import { getRecentPRs } from '../lib/prs'
 import type { Food } from '../types'
 
 function localDateStr(date: Date): string {
@@ -26,6 +27,9 @@ export default function WorkoutPage() {
   const exercises = useSession(s => s.exercises)
   const startWorkout = useSession(s => s.startWorkout)
   const { units } = useSettings()
+
+  // Recent personal records — celebratory card (live-updates as sets are logged).
+  const recentPRs = useLiveQuery(() => getRecentPRs(21, 2), [], [])
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
@@ -208,6 +212,32 @@ export default function WorkoutPage() {
           </div>
         </div>
 
+        {/* ─── Recent PR celebration ───────────────────────── */}
+        {recentPRs.length > 0 && (
+          <button
+            className="card"
+            style={{
+              padding: '13px 15px', textAlign: 'left', cursor: 'pointer', width: '100%',
+              border: '1px solid rgba(245 158 11 / 0.4)',
+              background: 'linear-gradient(100deg, rgba(245 158 11 / 0.12), rgb(var(--color-surface)))',
+            }}
+            onClick={() => navigate(`/progress/${recentPRs[0].exerciseUuid}`)}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Trophy size={22} style={{ color: 'rgb(var(--color-accent-amber))', flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgb(var(--color-accent-amber))' }}>
+                  {recentPRs.length > 1 ? `${recentPRs.length} New PRs` : 'New PR'}
+                </div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {recentPRs[0].exerciseName} — {recentPRs[0].weight}{units} × {recentPRs[0].reps}
+                </div>
+              </div>
+              <ChevronRight size={18} style={{ color: 'rgb(var(--color-text-muted))', flexShrink: 0 }} />
+            </div>
+          </button>
+        )}
+
         {/* ─── Quick actions ───────────────────────────────── */}
         {hydrated && workout ? (
           <button
@@ -262,7 +292,19 @@ export default function WorkoutPage() {
           </button>
         )}
 
-        {/* ─── Library + History nav cards ─────────────────── */}
+        {/* ─── Progress + Library + History nav cards ──────── */}
+        <button className="card nav-card" style={{ padding: '14px 16px' }} onClick={() => navigate('/progress')}>
+          <div style={{ ...iconWrap, background: 'rgba(34 197 94 / 0.12)' }}>
+            <TrendingUp size={20} style={{ color: 'rgb(var(--color-accent))' }} />
+          </div>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 15 }}>Progress &amp; Records</div>
+            <div style={{ fontSize: 13, color: 'rgb(var(--color-text-muted))', marginTop: 2 }}>
+              Strength charts, volume and PRs
+            </div>
+          </div>
+        </button>
+
         <button className="card nav-card" style={{ padding: '14px 16px' }} onClick={() => navigate('/exercises')}>
           <div style={iconWrap}>
             <BookOpen size={20} style={{ color: 'rgb(var(--color-accent))' }} />

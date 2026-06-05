@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import { db } from '../db'
 import type { Exercise, Workout, WorkoutSet, Routine } from '../types'
 import { getSetting, DEFAULT_SETTINGS } from '../lib/settings'
+import { detectSetPR, hasPR, type PRFlags } from '../lib/prs'
+import { playFanfare, vibrate } from '../lib/feedback'
 
 export const DEFAULT_REST = DEFAULT_SETTINGS.defaultRestSeconds
 const ORDER_KEY = 'active_session_order'
@@ -28,6 +30,9 @@ interface SessionState {
   pausedTotalMs: number
   // Single active rest timer (one rest runs at a time, like Hevy/Strong).
   restTimer: RestTimer | null
+  // PR flags for sets completed this session (keyed by set uuid) — drives the
+  // live "New PR" celebration badge. Best-effort & transient (not persisted).
+  prFlags: Record<string, PRFlags>
 
   // lifecycle
   resumeActive: () => Promise<boolean>
@@ -118,6 +123,7 @@ const emptyState = {
   pauseStartedAt: null as number | null,
   pausedTotalMs: 0,
   restTimer: null as RestTimer | null,
+  prFlags: {} as Record<string, PRFlags>,
 }
 
 export const useSession = create<SessionState>((set, get) => ({
@@ -179,18 +185,19 @@ export const useSession = create<SessionState>((set, get) => ({
       pauseStartedAt: null,
       pausedTotalMs: 0,
       restTimer: null,
+      prFlags: {},
     })
     return true
   },
 
   startWorkout: async (exs) => {
     const built = await buildSession(dayPartName(new Date()), 'single', undefined, exs)
-    set({ ...built, pauseStartedAt: null, pausedTotalMs: 0, restTimer: null })
+    set({ ...built, pauseStartedAt: null, pausedTotalMs: 0, restTimer: null, prFlags: {} })
   },
 
   startFromRoutine: async (routine, exs) => {
     const built = await buildSession(routine.name, 'routine', routine.uuid, exs)
-    set({ ...built, pauseStartedAt: null, pausedTotalMs: 0, restTimer: null })
+    set({ ...built, pauseStartedAt: null, pausedTotalMs: 0, restTimer: null, prFlags: {} })
   },
 
   finishWorkout: async () => {
@@ -255,16 +262,19 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   removeExercise: async (exerciseUuid) => {
-    const { exercises, sets, restTimer } = get()
+    const { exercises, sets, restTimer, prFlags } = get()
     const now = Date.now()
     const toRemove = sets.filter(s => s.exerciseUuid === exerciseUuid && s.deletedAt === null)
     for (const s of toRemove) await db.sets.update(s.uuid, { deletedAt: now, updatedAt: now })
     const nextExercises = exercises.filter(e => e.exercise.uuid !== exerciseUuid)
     await persistOrder(nextExercises.map(e => e.exercise.uuid))
+    const nextPrFlags = { ...prFlags }
+    for (const s of toRemove) delete nextPrFlags[s.uuid]
     set({
       exercises: nextExercises,
       sets: sets.filter(s => s.exerciseUuid !== exerciseUuid),
       restTimer: restTimer?.exerciseUuid === exerciseUuid ? null : restTimer,
+      prFlags: nextPrFlags,
     })
   },
 
@@ -319,10 +329,23 @@ export const useSession = create<SessionState>((set, get) => ({
     const completedAt = willComplete ? now : undefined
     set({ sets: sets.map(s => (s.uuid === uuid ? { ...s, completedAt, updatedAt: now } : s)) })
     await db.sets.update(uuid, { completedAt, updatedAt: now })
-    // Completing a set kicks off that exercise's rest timer.
+
     if (willComplete) {
+      // Completing a set kicks off that exercise's rest timer.
       const exRest = exercises.find(e => e.exercise.uuid === target.exerciseUuid)?.restSeconds ?? DEFAULT_REST
       if (exRest > 0) get().startRest(target.exerciseUuid, exRest)
+      // Is this lift a personal record? Detect against all prior completed sets.
+      const flags = await detectSetPR({ ...target, completedAt })
+      if (hasPR(flags)) {
+        set({ prFlags: { ...get().prFlags, [uuid]: flags } })
+        playFanfare()
+        vibrate([0, 60, 40, 60, 40, 120])
+      }
+    } else if (get().prFlags[uuid]) {
+      // Un-completing clears any PR badge it earned.
+      const next = { ...get().prFlags }
+      delete next[uuid]
+      set({ prFlags: next })
     }
   },
 
@@ -349,10 +372,13 @@ export const useSession = create<SessionState>((set, get) => ({
       if (s.setNumber !== i + 1) renumbered.set(s.uuid, i + 1)
     })
     for (const [id, n] of renumbered) await db.sets.update(id, { setNumber: n, updatedAt: now })
+    const nextFlags = { ...get().prFlags }
+    delete nextFlags[uuid]
     set({
       sets: get()
         .sets.filter(s => s.uuid !== uuid)
         .map(s => (renumbered.has(s.uuid) ? { ...s, setNumber: renumbered.get(s.uuid)! } : s)),
+      prFlags: nextFlags,
     })
   },
 

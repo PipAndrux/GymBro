@@ -50,6 +50,32 @@ export function playBeep(): void {
   beep(0.28, 1175)
 }
 
+/** Triumphant ascending arpeggio for a new personal record. */
+export function playFanfare(): void {
+  unlockAudio()
+  if (!ctx) return
+  const c = ctx
+  const note = (offset: number, freq: number, dur = 0.18) => {
+    const osc = c.createOscillator()
+    const gain = c.createGain()
+    osc.type = 'triangle'
+    osc.frequency.value = freq
+    const t = c.currentTime + offset
+    gain.gain.setValueAtTime(0, t)
+    gain.gain.linearRampToValueAtTime(0.3, t + 0.015)
+    gain.gain.linearRampToValueAtTime(0, t + dur)
+    osc.connect(gain)
+    gain.connect(c.destination)
+    osc.start(t)
+    osc.stop(t + dur + 0.02)
+  }
+  // C–E–G–C major arpeggio
+  note(0, 523.25)
+  note(0.1, 659.25)
+  note(0.2, 783.99)
+  note(0.32, 1046.5, 0.32)
+}
+
 /** Vibrate (Android only — iOS Safari ignores this). */
 export function vibrate(pattern: number | number[] = [120, 60, 120]): void {
   if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
