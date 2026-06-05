@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Routes, Route, NavLink, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Dumbbell, ListOrdered, Apple, Settings } from 'lucide-react'
@@ -6,6 +7,9 @@ import RoutinesPage from './pages/RoutinesPage'
 import FoodPage from './pages/FoodPage'
 import ProfilePage from './pages/ProfilePage'
 import ExercisesPage from './pages/ExercisesPage'
+import SessionPage from './pages/SessionPage'
+import RestTimerBar from './components/RestTimerBar'
+import { useSession } from './store/sessionStore'
 
 const tabs = [
   { to: '/', label: 'Workout', Icon: Dumbbell },
@@ -23,6 +27,11 @@ const pageVariants = {
 export default function App() {
   const location = useLocation()
 
+  // One-time hydration: restore an in-progress workout (if any) after a reload/crash.
+  useEffect(() => {
+    void useSession.getState().resumeActive()
+  }, [])
+
   return (
     <>
       <AnimatePresence mode="wait">
@@ -37,6 +46,7 @@ export default function App() {
         >
           <Routes location={location}>
             <Route path="/" element={<WorkoutPage />} />
+            <Route path="/session" element={<SessionPage />} />
             <Route path="/exercises" element={<ExercisesPage />} />
             <Route path="/routines" element={<RoutinesPage />} />
             <Route path="/food" element={<FoodPage />} />
@@ -44,6 +54,8 @@ export default function App() {
           </Routes>
         </motion.div>
       </AnimatePresence>
+
+      <RestTimerBar />
 
       <nav className="tab-bar">
         {tabs.map(({ to, label, Icon }) => (

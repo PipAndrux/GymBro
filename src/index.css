@@ -212,3 +212,246 @@ body {
   font-weight: 700;
   letter-spacing: -0.5px;
 }
+
+/* ─── Disabled buttons ───────────────────────────────────── */
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.btn:disabled:active {
+  transform: none;
+}
+
+/* ─── Live session: header ───────────────────────────────── */
+.session-name {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-size: 17px;
+  font-weight: 700;
+  color: rgb(var(--color-text));
+  font-family: inherit;
+  outline: none;
+  padding: 0;
+}
+
+.timer-pause {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 100px;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface-2));
+  color: rgb(var(--color-text));
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.timer-pause:active { transform: scale(0.94); }
+
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: rgb(var(--color-text-muted));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.icon-btn:active { transform: scale(0.9); }
+
+.rest-step {
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface-2));
+  color: rgb(var(--color-text));
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.rest-step:active { transform: scale(0.92); }
+
+/* ─── Live session: set table ────────────────────────────── */
+.set-head {
+  display: grid;
+  grid-template-columns: 22px 1fr 1fr 1fr 36px 26px;
+  gap: 6px;
+  margin-top: 12px;
+  margin-bottom: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: rgb(var(--color-text-muted));
+}
+
+.set-row {
+  display: grid;
+  grid-template-columns: 22px 1fr 1fr 1fr 36px 26px;
+  gap: 6px;
+  align-items: center;
+  padding: 5px 0;
+}
+
+.set-num {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(var(--color-text-muted));
+}
+
+.set-input {
+  width: 100%;
+  text-align: center;
+  background: rgb(var(--color-surface-2));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: 8px;
+  padding: 8px 4px;
+  font-size: 15px;
+  font-family: inherit;
+  color: rgb(var(--color-text));
+  outline: none;
+}
+.set-input:focus { border-color: rgb(var(--color-accent)); }
+
+.set-row-done .set-input {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.set-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface-2));
+  color: rgb(var(--color-text-muted));
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.set-check:active { transform: scale(0.92); }
+.set-check-done {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: #fff;
+}
+
+.set-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: rgb(var(--color-text-muted));
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.add-set {
+  width: 100%;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px;
+  border: 1px dashed rgb(var(--color-border));
+  border-radius: 10px;
+  background: transparent;
+  color: rgb(var(--color-accent));
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.add-set:active { transform: scale(0.98); }
+
+/* ─── Exercise picker rows ───────────────────────────────── */
+.pick-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin: 4px;
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  background: rgb(var(--color-surface-2));
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.pick-row:active { transform: scale(0.99); }
+
+.pick-check {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid rgb(var(--color-border));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+.pick-check.on {
+  background: rgb(var(--color-accent));
+  border-color: rgb(var(--color-accent));
+}
+
+/* ─── Global rest-timer bar ──────────────────────────────── */
+.rest-bar {
+  position: fixed;
+  left: 8px;
+  right: 8px;
+  bottom: calc(var(--tab-bar-height) + var(--safe-bottom) + 8px);
+  background: rgb(var(--color-surface));
+  border: 1px solid rgb(var(--color-border));
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  z-index: 60;
+}
+
+.rest-bar-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 3px;
+  transition: width 0.25s linear;
+}
+
+.rest-bar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.rest-ctrl {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgb(var(--color-border));
+  background: rgb(var(--color-surface-2));
+  color: rgb(var(--color-text));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.rest-ctrl:active { transform: scale(0.92); }
+.rest-skip { color: rgb(var(--color-text-muted)); }

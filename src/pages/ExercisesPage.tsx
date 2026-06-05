@@ -1,54 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, Plus, Search, Dumbbell, Star } from 'lucide-react'
 import { db } from '../db'
 import type { Exercise, MuscleGroup, Equipment, Category } from '../types'
+import { MUSCLE_FILTERS, EQUIPMENT_FILTERS, MUSCLE_COLORS } from '../lib/exerciseMeta'
 import BottomSheet from '../components/BottomSheet'
-
-// ─── Filter config ────────────────────────────────────────────────────────────
-
-const MUSCLE_FILTERS: { label: string; value: 'all' | MuscleGroup }[] = [
-  { label: 'All', value: 'all' },
-  { label: 'Chest', value: 'chest' },
-  { label: 'Back', value: 'back' },
-  { label: 'Shoulders', value: 'shoulders' },
-  { label: 'Biceps', value: 'biceps' },
-  { label: 'Triceps', value: 'triceps' },
-  { label: 'Forearms', value: 'forearms' },
-  { label: 'Quads', value: 'quads' },
-  { label: 'Hamstrings', value: 'hamstrings' },
-  { label: 'Glutes', value: 'glutes' },
-  { label: 'Calves', value: 'calves' },
-  { label: 'Core', value: 'core' },
-  { label: 'Cardio', value: 'cardio' },
-]
-
-const EQUIPMENT_FILTERS: { label: string; value: 'all' | Equipment }[] = [
-  { label: 'All', value: 'all' },
-  { label: 'Barbell', value: 'barbell' },
-  { label: 'Dumbbell', value: 'dumbbell' },
-  { label: 'Machine', value: 'machine' },
-  { label: 'Cable', value: 'cable' },
-  { label: 'Bodyweight', value: 'bodyweight' },
-  { label: 'Kettlebell', value: 'kettlebell' },
-  { label: 'Band', value: 'band' },
-  { label: 'Smith', value: 'smith' },
-]
-
-const MUSCLE_COLORS: Record<MuscleGroup, string> = {
-  chest: '#ef4444',
-  back: '#3b82f6',
-  shoulders: '#a855f7',
-  biceps: '#f97316',
-  triceps: '#eab308',
-  forearms: '#84cc16',
-  quads: '#22c55e',
-  hamstrings: '#14b8a6',
-  glutes: '#ec4899',
-  calves: '#6366f1',
-  core: '#06b6d4',
-  cardio: '#94a3b8',
-}
 
 // ─── Add Exercise Form ────────────────────────────────────────────────────────
 
@@ -219,20 +176,14 @@ const chipStyle: React.CSSProperties = {
 
 export default function ExercisesPage() {
   const navigate = useNavigate()
-  const [exercises, setExercises] = useState<Exercise[]>([])
   const [search, setSearch] = useState('')
   const [muscleFilter, setMuscleFilter] = useState<'all' | MuscleGroup>('all')
   const [equipFilter, setEquipFilter] = useState<'all' | Equipment>('all')
   const [showAddSheet, setShowAddSheet] = useState(false)
 
-  const loadExercises = useCallback(async () => {
-    const all = await db.exercises
-      .filter(ex => ex.deletedAt === null)
-      .sortBy('name')
-    setExercises(all)
-  }, [])
-
-  useEffect(() => { loadExercises() }, [loadExercises])
+  // Live list — automatically reflects newly added custom exercises.
+  const exercises =
+    useLiveQuery(() => db.exercises.filter(ex => ex.deletedAt === null).sortBy('name'), [], [] as Exercise[]) ?? []
 
   const filtered = exercises.filter(ex => {
     if (muscleFilter !== 'all' && ex.primaryMuscle !== muscleFilter) return false
@@ -345,7 +296,7 @@ export default function ExercisesPage() {
         title="New Custom Exercise"
       >
         <AddExerciseForm
-          onSave={() => { setShowAddSheet(false); loadExercises() }}
+          onSave={() => setShowAddSheet(false)}
           onCancel={() => setShowAddSheet(false)}
         />
       </BottomSheet>
