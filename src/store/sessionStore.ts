@@ -1,8 +1,9 @@
 import { create } from 'zustand'
 import { db } from '../db'
 import type { Exercise, Workout, WorkoutSet, Routine } from '../types'
+import { getSetting, DEFAULT_SETTINGS } from '../lib/settings'
 
-export const DEFAULT_REST = 90
+export const DEFAULT_REST = DEFAULT_SETTINGS.defaultRestSeconds
 const ORDER_KEY = 'active_session_order'
 
 export interface SessionExercise {
@@ -80,6 +81,7 @@ async function buildSession(
   exs: Exercise[]
 ): Promise<{ workout: Workout; exercises: SessionExercise[]; sets: WorkoutSet[] }> {
   const now = Date.now()
+  const defaultRest = await getSetting('defaultRestSeconds')
   const workout: Workout = {
     uuid: crypto.randomUUID(),
     name,
@@ -91,7 +93,7 @@ async function buildSession(
     deletedAt: null,
   }
   await db.workouts.add(workout)
-  const exercises: SessionExercise[] = exs.map(ex => ({ exercise: ex, restSeconds: DEFAULT_REST }))
+  const exercises: SessionExercise[] = exs.map(ex => ({ exercise: ex, restSeconds: defaultRest }))
   const sets: WorkoutSet[] = exs.map((ex, i) => ({
     uuid: crypto.randomUUID(),
     workoutUuid: workout.uuid,
@@ -99,7 +101,7 @@ async function buildSession(
     setNumber: 1,
     weight: 0,
     reps: 0,
-    restSeconds: DEFAULT_REST,
+    restSeconds: defaultRest,
     completedAt: undefined,
     updatedAt: now + i,
     deletedAt: null,
@@ -232,7 +234,8 @@ export const useSession = create<SessionState>((set, get) => ({
     const toAdd = exs.filter(e => !existing.has(e.uuid))
     if (toAdd.length === 0) return
     const now = Date.now()
-    const newExercises: SessionExercise[] = toAdd.map(ex => ({ exercise: ex, restSeconds: DEFAULT_REST }))
+    const defaultRest = await getSetting('defaultRestSeconds')
+    const newExercises: SessionExercise[] = toAdd.map(ex => ({ exercise: ex, restSeconds: defaultRest }))
     const newSets: WorkoutSet[] = toAdd.map((ex, i) => ({
       uuid: crypto.randomUUID(),
       workoutUuid: workout.uuid,
@@ -240,7 +243,7 @@ export const useSession = create<SessionState>((set, get) => ({
       setNumber: 1,
       weight: 0,
       reps: 0,
-      restSeconds: DEFAULT_REST,
+      restSeconds: defaultRest,
       completedAt: undefined,
       updatedAt: now + i,
       deletedAt: null,

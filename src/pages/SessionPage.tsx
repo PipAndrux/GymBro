@@ -5,6 +5,7 @@ import { useSession } from '../store/sessionStore'
 import { useNow } from '../lib/useNow'
 import { getLastPerformance, type LastPerformance } from '../lib/history'
 import { formatDuration } from '../lib/format'
+import { useSettings } from '../lib/settings'
 import SetRow from '../components/SetRow'
 import ExercisePicker from '../components/ExercisePicker'
 import BottomSheet from '../components/BottomSheet'
@@ -37,6 +38,7 @@ export default function SessionPage() {
   const finishWorkout = useSession(s => s.finishWorkout)
   const discardWorkout = useSession(s => s.discardWorkout)
 
+  const { units } = useSettings()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [confirm, setConfirm] = useState<null | 'finish' | 'discard'>(null)
 
@@ -138,7 +140,7 @@ export default function SessionPage() {
                     <span style={{ ...chip, background: `${color}22`, color }}>{exercise.primaryMuscle}</span>
                     {lastPerf[exercise.uuid] && (
                       <div style={{ fontSize: 12, color: 'rgb(var(--color-text-muted))', marginTop: 4 }}>
-                        Last: {lastPerf[exercise.uuid]!.weight} kg × {lastPerf[exercise.uuid]!.reps}
+                        Last: {lastPerf[exercise.uuid]!.weight} {units} × {lastPerf[exercise.uuid]!.reps}
                       </div>
                     )}
                   </div>
@@ -164,7 +166,7 @@ export default function SessionPage() {
                 {/* Set table */}
                 <div className="set-head">
                   <div style={{ textAlign: 'center' }}>SET</div>
-                  <div style={{ textAlign: 'center' }}>KG</div>
+                  <div style={{ textAlign: 'center' }}>{units.toUpperCase()}</div>
                   <div style={{ textAlign: 'center' }}>REPS</div>
                   <div style={{ textAlign: 'center' }}>RPE</div>
                   <div />

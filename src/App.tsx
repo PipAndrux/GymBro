@@ -13,6 +13,7 @@ import HistoryPage from './pages/HistoryPage'
 import HistoryDetailPage from './pages/HistoryDetailPage'
 import RestTimerBar from './components/RestTimerBar'
 import { useSession } from './store/sessionStore'
+import { useSettings } from './lib/settings'
 
 const tabs = [
   { to: '/', label: 'Workout', Icon: Dumbbell },
@@ -29,11 +30,19 @@ const pageVariants = {
 
 export default function App() {
   const location = useLocation()
+  const { theme } = useSettings()
 
   // One-time hydration: restore an in-progress workout (if any) after a reload/crash.
   useEffect(() => {
     void useSession.getState().resumeActive()
   }, [])
+
+  // Apply manual theme override to <html> element.
+  useEffect(() => {
+    const html = document.documentElement
+    if (theme === 'system') html.removeAttribute('data-theme')
+    else html.setAttribute('data-theme', theme)
+  }, [theme])
 
   return (
     <>

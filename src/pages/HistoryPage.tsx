@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Clock, Dumbbell, History as HistoryIcon } fr
 import { db } from '../db'
 import type { Workout } from '../types'
 import { formatDateLong, formatTime, formatDurationShort, formatVolume } from '../lib/format'
+import { useSettings } from '../lib/settings'
 
 interface HistoryItem {
   workout: Workout
@@ -14,6 +15,7 @@ interface HistoryItem {
 
 export default function HistoryPage() {
   const navigate = useNavigate()
+  const { units } = useSettings()
 
   const items =
     useLiveQuery(
@@ -88,7 +90,7 @@ export default function HistoryPage() {
                       <Clock size={14} /> {formatDurationShort(duration)}
                     </span>
                     <span style={stat}>
-                      <Dumbbell size={14} /> {formatVolume(volume)}
+                      <Dumbbell size={14} /> {formatVolume(volume, units)}
                     </span>
                     <span style={stat}>
                       {exerciseCount} ex · {setCount} set{setCount !== 1 ? 's' : ''}

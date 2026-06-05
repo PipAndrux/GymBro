@@ -35,6 +35,6 @@ export function formatTime(ts: number): string {
 }
 
 /** Rounded volume with thousands separator, e.g. "12,340 kg". */
-export function formatVolume(kg: number): string {
-  return `${Math.round(kg).toLocaleString()} kg`
+export function formatVolume(kg: number, unit: string = 'kg'): string {
+  return `${Math.round(kg).toLocaleString()} ${unit}`
 }

@@ -5,6 +5,7 @@ import { db } from '../db'
 import type { Exercise, WorkoutSet, Workout } from '../types'
 import { MUSCLE_COLORS } from '../lib/exerciseMeta'
 import { formatDateLong, formatTime, formatDurationShort, formatVolume } from '../lib/format'
+import { useSettings } from '../lib/settings'
 
 interface Group {
   exercise: Exercise | undefined
@@ -21,6 +22,7 @@ interface Detail {
 export default function HistoryDetailPage() {
   const navigate = useNavigate()
   const { uuid } = useParams<{ uuid: string }>()
+  const { units } = useSettings()
 
   const detail = useLiveQuery(async (): Promise<Detail | null> => {
     if (!uuid) return null
@@ -93,7 +95,7 @@ export default function HistoryDetailPage() {
                 <Clock size={15} /> {formatDurationShort((detail.workout.endedAt ?? detail.workout.startedAt) - detail.workout.startedAt)}
               </span>
               <span style={stat}>
-                <Dumbbell size={15} /> {formatVolume(detail.volume)}
+                <Dumbbell size={15} /> {formatVolume(detail.volume, units)}
               </span>
               <span style={stat}>
                 {detail.groups.length} ex · {detail.setCount} set{detail.setCount !== 1 ? 's' : ''}
@@ -131,7 +133,7 @@ export default function HistoryDetailPage() {
                       <div key={s.uuid} style={setRow}>
                         <span style={{ color: 'rgb(var(--color-text-muted))', fontWeight: 600, minWidth: 18 }}>{i + 1}</span>
                         <span style={{ fontWeight: 600 }}>
-                          {s.weight} kg × {s.reps}
+                          {s.weight} {units} × {s.reps}
                         </span>
                         {s.rpe != null && (
                           <span style={{ color: 'rgb(var(--color-text-muted))', fontSize: 13 }}>RPE {s.rpe}</span>

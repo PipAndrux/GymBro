@@ -32,6 +32,24 @@
   }
 }
 
+/* Manual theme overrides — attribute selector wins over @media (higher specificity) */
+html[data-theme="light"] {
+  --color-bg: 255 255 255;
+  --color-surface: 248 248 248;
+  --color-surface-2: 237 237 237;
+  --color-border: 229 229 229;
+  --color-text: 17 17 17;
+  --color-text-muted: 115 115 115;
+}
+html[data-theme="dark"] {
+  --color-bg: 10 10 10;
+  --color-surface: 20 20 20;
+  --color-surface-2: 32 32 32;
+  --color-border: 45 45 45;
+  --color-text: 245 245 245;
+  --color-text-muted: 160 160 160;
+}
+
 /* ─── Reset ─────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
