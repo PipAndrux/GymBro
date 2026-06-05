@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Plus, BookOpen, Play } from 'lucide-react'
+import { Plus, BookOpen, Play, History } from 'lucide-react'
 import { useSession } from '../store/sessionStore'
 
 export default function WorkoutPage() {
@@ -47,26 +47,10 @@ export default function WorkoutPage() {
         )}
       </div>
 
-      {/* Exercise library */}
-      <div style={{ padding: '0 16px' }}>
-        <p className="section-title" style={{ padding: 0, marginBottom: 8 }}>Library</p>
-        <button
-          className="card"
-          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', border: 'none', textAlign: 'left' }}
-          onClick={() => navigate('/exercises')}
-        >
-          <div
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'rgba(99 102 241 / 0.12)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
+      {/* Library + history */}
+      <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <button className="card nav-card" onClick={() => navigate('/exercises')}>
+          <div style={{ ...iconWrap, backgroundColor: 'rgba(99 102 241 / 0.12)' }}>
             <BookOpen size={22} style={{ color: 'rgb(var(--color-accent))' }} />
           </div>
           <div>
@@ -76,7 +60,29 @@ export default function WorkoutPage() {
             </div>
           </div>
         </button>
+
+        <button className="card nav-card" onClick={() => navigate('/history')}>
+          <div style={{ ...iconWrap, backgroundColor: 'rgba(34 197 94 / 0.12)' }}>
+            <History size={22} style={{ color: '#22c55e' }} />
+          </div>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 15 }}>Workout History</div>
+            <div style={{ fontSize: 13, color: 'rgb(var(--color-text-muted))', marginTop: 2 }}>
+              Review past workouts, sets and volume
+            </div>
+          </div>
+        </button>
       </div>
     </div>
   )
+}
+
+const iconWrap: React.CSSProperties = {
+  width: 44,
+  height: 44,
+  borderRadius: 'var(--radius-md)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flexShrink: 0,
 }

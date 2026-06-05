@@ -4,20 +4,11 @@ import { ChevronLeft, Pause, Play, Plus, Trash2, Dumbbell } from 'lucide-react'
 import { useSession } from '../store/sessionStore'
 import { useNow } from '../lib/useNow'
 import { getLastPerformance, type LastPerformance } from '../lib/history'
+import { formatDuration } from '../lib/format'
 import SetRow from '../components/SetRow'
 import ExercisePicker from '../components/ExercisePicker'
 import BottomSheet from '../components/BottomSheet'
 import { MUSCLE_COLORS } from '../lib/exerciseMeta'
-
-function fmtDur(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000))
-  const h = Math.floor(total / 3600)
-  const m = Math.floor((total % 3600) / 60)
-  const s = total % 60
-  const mm = String(m).padStart(2, '0')
-  const ss = String(s).padStart(2, '0')
-  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`
-}
 
 function fmtRest(sec: number): string {
   if (sec < 60) return `${sec}s`
@@ -115,7 +106,7 @@ export default function SessionPage() {
               />
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
                 <span style={{ fontSize: 20, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                  {fmtDur(elapsedMs())}
+                  {formatDuration(elapsedMs())}
                 </span>
                 <button className="timer-pause" onClick={togglePause}>
                   {running ? <Pause size={13} /> : <Play size={13} />}

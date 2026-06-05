@@ -9,6 +9,8 @@ import ProfilePage from './pages/ProfilePage'
 import ExercisesPage from './pages/ExercisesPage'
 import SessionPage from './pages/SessionPage'
 import RoutineEditPage from './pages/RoutineEditPage'
+import HistoryPage from './pages/HistoryPage'
+import HistoryDetailPage from './pages/HistoryDetailPage'
 import RestTimerBar from './components/RestTimerBar'
 import { useSession } from './store/sessionStore'
 
@@ -52,6 +54,8 @@ export default function App() {
             <Route path="/routines" element={<RoutinesPage />} />
             <Route path="/routines/new" element={<RoutineEditPage />} />
             <Route path="/routines/:uuid" element={<RoutineEditPage />} />
+            <Route path="/history" element={<HistoryPage />} />
+            <Route path="/history/:uuid" element={<HistoryDetailPage />} />
             <Route path="/food" element={<FoodPage />} />
             <Route path="/settings" element={<ProfilePage />} />
           </Routes>
