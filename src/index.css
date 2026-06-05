@@ -455,3 +455,23 @@ body {
 }
 .rest-ctrl:active { transform: scale(0.92); }
 .rest-skip { color: rgb(var(--color-text-muted)); }
+
+/* ─── Routine reorder buttons ────────────────────────────── */
+.reorder-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: rgb(var(--color-text-muted));
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.reorder-btn:active { transform: scale(0.88); }
+.reorder-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+.reorder-btn:disabled:active { transform: none; }

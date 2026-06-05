@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { db } from '../db'
-import type { Exercise, Workout, WorkoutSet } from '../types'
+import type { Exercise, Workout, WorkoutSet, Routine } from '../types'
 
 export const DEFAULT_REST = 90
 const ORDER_KEY = 'active_session_order'
@@ -31,6 +31,7 @@ interface SessionState {
   // lifecycle
   resumeActive: () => Promise<boolean>
   startWorkout: (exs: Exercise[]) => Promise<void>
+  startFromRoutine: (routine: Routine, exs: Exercise[]) => Promise<void>
   finishWorkout: () => Promise<Workout | null>
   discardWorkout: () => Promise<void>
 
@@ -68,6 +69,44 @@ function dayPartName(d: Date): string {
 // in-progress workout fully restores after a refresh or crash.
 async function persistOrder(uuids: string[]): Promise<void> {
   await db.settings.put({ key: ORDER_KEY, value: JSON.stringify(uuids) })
+}
+
+// Creates the workout + a first set per exercise, and persists the order.
+// Shared by single workouts and routine-launched workouts.
+async function buildSession(
+  name: string,
+  type: 'single' | 'routine',
+  routineUuid: string | undefined,
+  exs: Exercise[]
+): Promise<{ workout: Workout; exercises: SessionExercise[]; sets: WorkoutSet[] }> {
+  const now = Date.now()
+  const workout: Workout = {
+    uuid: crypto.randomUUID(),
+    name,
+    type,
+    routineUuid,
+    startedAt: now,
+    status: 'active',
+    updatedAt: now,
+    deletedAt: null,
+  }
+  await db.workouts.add(workout)
+  const exercises: SessionExercise[] = exs.map(ex => ({ exercise: ex, restSeconds: DEFAULT_REST }))
+  const sets: WorkoutSet[] = exs.map((ex, i) => ({
+    uuid: crypto.randomUUID(),
+    workoutUuid: workout.uuid,
+    exerciseUuid: ex.uuid,
+    setNumber: 1,
+    weight: 0,
+    reps: 0,
+    restSeconds: DEFAULT_REST,
+    completedAt: undefined,
+    updatedAt: now + i,
+    deletedAt: null,
+  }))
+  await db.sets.bulkAdd(sets)
+  await persistOrder(exs.map(e => e.uuid))
+  return { workout, exercises, sets }
 }
 
 const emptyState = {
@@ -143,35 +182,13 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   startWorkout: async (exs) => {
-    const now = Date.now()
-    const workout: Workout = {
-      uuid: crypto.randomUUID(),
-      name: dayPartName(new Date()),
-      type: 'single',
-      startedAt: now,
-      status: 'active',
-      updatedAt: now,
-      deletedAt: null,
-    }
-    await db.workouts.add(workout)
+    const built = await buildSession(dayPartName(new Date()), 'single', undefined, exs)
+    set({ ...built, pauseStartedAt: null, pausedTotalMs: 0, restTimer: null })
+  },
 
-    const exercises: SessionExercise[] = exs.map(ex => ({ exercise: ex, restSeconds: DEFAULT_REST }))
-    const sets: WorkoutSet[] = exs.map((ex, i) => ({
-      uuid: crypto.randomUUID(),
-      workoutUuid: workout.uuid,
-      exerciseUuid: ex.uuid,
-      setNumber: 1,
-      weight: 0,
-      reps: 0,
-      restSeconds: DEFAULT_REST,
-      completedAt: undefined,
-      updatedAt: now + i,
-      deletedAt: null,
-    }))
-    await db.sets.bulkAdd(sets)
-    await persistOrder(exs.map(e => e.uuid))
-
-    set({ workout, exercises, sets, pauseStartedAt: null, pausedTotalMs: 0, restTimer: null })
+  startFromRoutine: async (routine, exs) => {
+    const built = await buildSession(routine.name, 'routine', routine.uuid, exs)
+    set({ ...built, pauseStartedAt: null, pausedTotalMs: 0, restTimer: null })
   },
 
   finishWorkout: async () => {

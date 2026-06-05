@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Pause, Play, Plus, Trash2, Dumbbell } from 'lucide-react'
 import { useSession } from '../store/sessionStore'
 import { useNow } from '../lib/useNow'
+import { getLastPerformance, type LastPerformance } from '../lib/history'
 import SetRow from '../components/SetRow'
 import ExercisePicker from '../components/ExercisePicker'
 import BottomSheet from '../components/BottomSheet'
@@ -47,6 +48,25 @@ export default function SessionPage() {
 
   const [pickerOpen, setPickerOpen] = useState(false)
   const [confirm, setConfirm] = useState<null | 'finish' | 'discard'>(null)
+
+  // Last-used weight/reps per exercise (from prior workouts) — "what to beat".
+  const [lastPerf, setLastPerf] = useState<Record<string, LastPerformance | null>>({})
+  const workoutUuid = workout?.uuid
+  useEffect(() => {
+    if (!workoutUuid) return
+    let cancelled = false
+    ;(async () => {
+      const entries = await Promise.all(
+        exercises.map(
+          async ({ exercise }) => [exercise.uuid, await getLastPerformance(exercise.uuid, workoutUuid)] as const
+        )
+      )
+      if (!cancelled) setLastPerf(Object.fromEntries(entries))
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [exercises, workoutUuid])
 
   const running = !!workout && pauseStartedAt === null
   // Tick the elapsed-time display once per second while running (no return value needed —
@@ -125,6 +145,11 @@ export default function SessionPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 15 }}>{exercise.name}</div>
                     <span style={{ ...chip, background: `${color}22`, color }}>{exercise.primaryMuscle}</span>
+                    {lastPerf[exercise.uuid] && (
+                      <div style={{ fontSize: 12, color: 'rgb(var(--color-text-muted))', marginTop: 4 }}>
+                        Last: {lastPerf[exercise.uuid]!.weight} kg × {lastPerf[exercise.uuid]!.reps}
+                      </div>
+                    )}
                   </div>
                   <button className="icon-btn" onClick={() => removeExercise(exercise.uuid)} aria-label="remove exercise">
                     <Trash2 size={16} />
