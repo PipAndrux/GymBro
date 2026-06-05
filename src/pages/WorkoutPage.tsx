@@ -1,9 +1,6 @@
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, BookOpen, Play } from 'lucide-react'
 import { useSession } from '../store/sessionStore'
-import ExercisePicker from '../components/ExercisePicker'
-import type { Exercise } from '../types'
 
 export default function WorkoutPage() {
   const navigate = useNavigate()
@@ -11,11 +8,11 @@ export default function WorkoutPage() {
   const workout = useSession(s => s.workout)
   const exercises = useSession(s => s.exercises)
   const startWorkout = useSession(s => s.startWorkout)
-  const [pickerOpen, setPickerOpen] = useState(false)
 
-  async function handleStart(selected: Exercise[]) {
-    setPickerOpen(false)
-    await startWorkout(selected)
+  async function handleStart() {
+    // Start an empty session and go straight to the live screen — exercises are
+    // added (and removed) from there.
+    await startWorkout([])
     navigate('/session')
   }
 
@@ -42,7 +39,7 @@ export default function WorkoutPage() {
           <button
             className="btn btn-primary"
             style={{ width: '100%', padding: 16, fontSize: 17, borderRadius: 'var(--radius-lg)' }}
-            onClick={() => setPickerOpen(true)}
+            onClick={handleStart}
           >
             <Plus size={20} />
             Start Single Workout
@@ -80,14 +77,6 @@ export default function WorkoutPage() {
           </div>
         </button>
       </div>
-
-      <ExercisePicker
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        onConfirm={handleStart}
-        title="Choose Exercises"
-        confirmLabel="Start Workout"
-      />
     </div>
   )
 }

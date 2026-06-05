@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { ChevronLeft, Pause, Play, Plus, Trash2 } from 'lucide-react'
+import { ChevronLeft, Pause, Play, Plus, Trash2, Dumbbell } from 'lucide-react'
 import { useSession } from '../store/sessionStore'
 import { useNow } from '../lib/useNow'
 import SetRow from '../components/SetRow'
@@ -173,7 +173,18 @@ export default function SessionPage() {
             )
           })}
 
-          <button className="btn btn-secondary" style={{ width: '100%', marginTop: 4 }} onClick={() => setPickerOpen(true)}>
+          {exercises.length === 0 && (
+            <div className="empty-state" style={{ paddingTop: 36 }}>
+              <Dumbbell size={40} strokeWidth={1.5} />
+              <p>No exercises yet. Add one to start logging.</p>
+            </div>
+          )}
+
+          <button
+            className="btn btn-secondary"
+            style={{ width: '100%', marginTop: exercises.length === 0 ? 8 : 4 }}
+            onClick={() => setPickerOpen(true)}
+          >
             <Plus size={18} /> Add Exercise
           </button>
 
