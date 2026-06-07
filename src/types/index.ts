@@ -112,3 +112,24 @@ export interface Setting {
   key: string
   value: string | number | boolean
 }
+
+export interface Measurement {
+  uuid: string
+  type: string
+  label: string
+  unit: string
+  isCustom: boolean
+  sortOrder: number
+  updatedAt: number
+  deletedAt: number | null
+}
+
+export interface MeasurementEntry {
+  uuid: string
+  measurementUuid: string
+  value: number
+  date: string      // 'YYYY-MM-DD'
+  createdAt: number
+  updatedAt: number
+  deletedAt: number | null
+}

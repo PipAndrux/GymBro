@@ -2,6 +2,7 @@ import { useEffect, lazy, Suspense } from 'react'
 import { Routes, Route, NavLink, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Dumbbell, ListOrdered, Apple, Settings } from 'lucide-react'
+import { useAuth } from './store/authStore'
 import WorkoutPage from './pages/WorkoutPage'
 import RoutinesPage from './pages/RoutinesPage'
 import FoodPage from './pages/FoodPage'
@@ -14,10 +15,10 @@ import HistoryDetailPage from './pages/HistoryDetailPage'
 import WorkoutSummaryPage from './pages/WorkoutSummaryPage'
 import RestTimerBar from './components/RestTimerBar'
 
-// Progress screens pull in recharts (~280KB gzip) — load them on demand so the
-// core app and dashboard stay light and start instantly offline.
+// Progress and measurement screens pull in recharts — load on demand.
 const ProgressPage = lazy(() => import('./pages/ProgressPage'))
 const ExerciseProgressPage = lazy(() => import('./pages/ExerciseProgressPage'))
+const MeasurementPage = lazy(() => import('./pages/MeasurementPage'))
 import { useSession } from './store/sessionStore'
 import { useSettings } from './lib/settings'
 
@@ -37,11 +38,12 @@ const pageVariants = {
 export default function App() {
   const location = useLocation()
   const { theme } = useSettings()
+  const initAuth = useAuth(s => s.initialize)
 
-  // One-time hydration: restore an in-progress workout (if any) after a reload/crash.
   useEffect(() => {
     void useSession.getState().resumeActive()
-  }, [])
+    initAuth()
+  }, [initAuth])
 
   // Apply manual theme override to <html> element.
   useEffect(() => {
@@ -75,6 +77,7 @@ export default function App() {
             <Route path="/summary/:uuid" element={<WorkoutSummaryPage />} />
             <Route path="/progress" element={<ProgressPage />} />
             <Route path="/progress/:exerciseUuid" element={<ExerciseProgressPage />} />
+            <Route path="/measurements/:uuid" element={<MeasurementPage />} />
             <Route path="/food" element={<FoodPage />} />
             <Route path="/settings" element={<ProfilePage />} />
           </Routes>

@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie'
-import type { Exercise, Routine, Workout, WorkoutSet, Food, FoodEntry, DailyGoal, Setting } from '../types'
+import type { Exercise, Routine, Workout, WorkoutSet, Food, FoodEntry, DailyGoal, Setting, Measurement, MeasurementEntry } from '../types'
 import { EXERCISE_SEED } from '../data/exercises.seed'
 
 class FitTrackerDB extends Dexie {
@@ -11,6 +11,8 @@ class FitTrackerDB extends Dexie {
   foodEntries!: Table<FoodEntry, string>
   dailyGoals!: Table<DailyGoal, string>
   settings!: Table<Setting, string>
+  measurements!: Table<Measurement, string>
+  measurementEntries!: Table<MeasurementEntry, string>
 
   constructor() {
     super('FitTrackerDB')
@@ -24,6 +26,19 @@ class FitTrackerDB extends Dexie {
       foodEntries: '&uuid, date, foodUuid, mealType, updatedAt, deletedAt',
       dailyGoals: '&uuid, date, updatedAt, deletedAt',
       settings: '&key',
+    })
+
+    this.version(2).stores({
+      exercises: '&uuid, name, primaryMuscle, equipment, category, isCustom, updatedAt, deletedAt',
+      routines: '&uuid, name, createdAt, updatedAt, deletedAt',
+      workouts: '&uuid, routineUuid, startedAt, endedAt, status, updatedAt, deletedAt',
+      sets: '&uuid, workoutUuid, exerciseUuid, completedAt, updatedAt, deletedAt',
+      foods: '&uuid, name, isCustom, updatedAt, deletedAt',
+      foodEntries: '&uuid, date, foodUuid, mealType, updatedAt, deletedAt',
+      dailyGoals: '&uuid, date, updatedAt, deletedAt',
+      settings: '&key',
+      measurements: '&uuid, type, sortOrder, updatedAt, deletedAt',
+      measurementEntries: '&uuid, measurementUuid, date, updatedAt, deletedAt',
     })
 
     // Seed built-in exercises on first DB creation
@@ -41,4 +56,19 @@ export async function ensureExercisesSeed() {
   if (count === 0) {
     await db.exercises.bulkAdd(EXERCISE_SEED)
   }
+}
+
+/** Ensure the two primary measurements (weight, height) always exist. */
+export async function ensurePrimaryMeasurements() {
+  const existing = await db.measurements.filter(m => m.deletedAt === null).toArray()
+  const types = new Set(existing.map(m => m.type))
+  const now = Date.now()
+  const toAdd: import('../types').Measurement[] = []
+  if (!types.has('weight')) {
+    toAdd.push({ uuid: crypto.randomUUID(), type: 'weight', label: 'Body Weight', unit: 'kg', isCustom: false, sortOrder: 0, updatedAt: now, deletedAt: null })
+  }
+  if (!types.has('height')) {
+    toAdd.push({ uuid: crypto.randomUUID(), type: 'height', label: 'Height', unit: 'cm', isCustom: false, sortOrder: 1, updatedAt: now, deletedAt: null })
+  }
+  if (toAdd.length > 0) await db.measurements.bulkAdd(toAdd)
 }
