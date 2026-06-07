@@ -117,6 +117,33 @@ export default function LogFoodSheet({ open, onClose, date, mealType, onLogged }
     <BottomSheet open={open} onClose={onClose} title={sheetTitle}>
       {mode === 'pick' && (
         <>
+          {/* Quick-add chips: top 5 most-recently logged foods */}
+          {!search && recentUuids && recentUuids.length > 0 && (() => {
+            const chips = recentUuids.slice(0, 5).map(uuid => allFoods?.find(f => f.uuid === uuid)).filter(Boolean)
+            if (chips.length === 0) return null
+            return (
+              <div style={{ marginBottom: 14 }}>
+                <div style={{
+                  fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
+                  textTransform: 'uppercase', color: 'rgb(var(--color-text-muted))', marginBottom: 8,
+                }}>
+                  Quick Add
+                </div>
+                <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
+                  {chips.map(food => food && (
+                    <button
+                      key={food.uuid}
+                      style={quickChipStyle}
+                      onClick={() => { setSelectedFood(food); setMode('grams') }}
+                    >
+                      {food.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
+
           {/* Search */}
           <div style={{ position: 'relative', marginBottom: 12 }}>
             <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'rgb(var(--color-text-muted))' }} />
@@ -207,7 +234,7 @@ export default function LogFoodSheet({ open, onClose, date, mealType, onLogged }
               <MacroChip label="kcal" value={preview.calories} color="rgb(var(--color-accent))" />
               <MacroChip label="protein" value={preview.protein} color="#3b82f6" />
               <MacroChip label="carbs" value={preview.carbs} color="#f97316" />
-              <MacroChip label="fat" value={preview.fat} color="#eab308" />
+              <MacroChip label="fat" value={preview.fat} color="#ef4444" />
             </div>
           )}
 
@@ -266,4 +293,19 @@ const lbl: React.CSSProperties = {
   fontWeight: 600,
   marginBottom: 6,
   color: 'rgb(var(--color-text-muted))',
+}
+
+const quickChipStyle: React.CSSProperties = {
+  flexShrink: 0,
+  padding: '7px 14px',
+  borderRadius: 100,
+  border: '1.5px solid rgb(var(--color-border))',
+  background: 'rgb(var(--color-surface-2))',
+  color: 'rgb(var(--color-text))',
+  fontSize: 13,
+  fontWeight: 600,
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
+  WebkitTapHighlightColor: 'transparent',
+  fontFamily: 'inherit',
 }

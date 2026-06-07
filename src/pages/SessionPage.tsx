@@ -140,11 +140,6 @@ export default function SessionPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 15 }}>{exercise.name}</div>
                     <span style={{ ...chip, background: `${color}22`, color }}>{exercise.primaryMuscle}</span>
-                    {lastPerf[exercise.uuid] && (
-                      <div style={{ fontSize: 12, color: 'rgb(var(--color-text-muted))', marginTop: 4 }}>
-                        Last: {lastPerf[exercise.uuid]!.weight} {units} × {lastPerf[exercise.uuid]!.reps}
-                      </div>
-                    )}
                   </div>
                   <button className="icon-btn" onClick={() => removeExercise(exercise.uuid)} aria-label="remove exercise">
                     <Trash2 size={16} />
@@ -175,17 +170,22 @@ export default function SessionPage() {
                   <div />
                 </div>
 
-                {exSets.map((s, i) => (
-                  <SetRow
-                    key={s.uuid}
-                    set={s}
-                    index={i}
-                    pr={prFlags[s.uuid]}
-                    onChange={patch => updateSet(s.uuid, patch)}
-                    onToggle={() => toggleSetComplete(s.uuid)}
-                    onRemove={() => removeSet(s.uuid)}
-                  />
-                ))}
+                {exSets.map((s, i) => {
+                  const perf = lastPerf[exercise.uuid]
+                  return (
+                    <SetRow
+                      key={s.uuid}
+                      set={s}
+                      index={i}
+                      pr={prFlags[s.uuid]}
+                      lastWeight={perf?.weight}
+                      lastReps={perf?.reps}
+                      onChange={patch => updateSet(s.uuid, patch)}
+                      onToggle={() => toggleSetComplete(s.uuid)}
+                      onRemove={() => removeSet(s.uuid)}
+                    />
+                  )
+                })}
 
                 <button className="add-set" onClick={() => addSet(exercise.uuid)}>
                   <Plus size={16} /> Add set

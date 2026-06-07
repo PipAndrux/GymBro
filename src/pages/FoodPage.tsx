@@ -105,7 +105,7 @@ export default function FoodPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 14 }}>
             <MacroBar label="Protein" value={totals.protein} goal={protGoal} color="#3b82f6" unit="g" />
             <MacroBar label="Carbs" value={totals.carbs} goal={carbGoal} color="#f97316" unit="g" />
-            <MacroBar label="Fat" value={totals.fat} goal={fatGoal} color="#eab308" unit="g" />
+            <MacroBar label="Fat" value={totals.fat} goal={fatGoal} color="#ef4444" unit="g" />
           </div>
 
           <button

@@ -9,6 +9,8 @@ interface SetRowProps {
   set: WorkoutSet
   index: number
   pr?: PRFlags
+  lastWeight?: number
+  lastReps?: number
   onChange: (patch: Partial<Pick<WorkoutSet, 'weight' | 'reps' | 'rpe'>>) => void
   onToggle: () => void
   onRemove: () => void
@@ -18,13 +20,18 @@ const numStr = (n: number | undefined) => (n === undefined || n === 0 ? '' : Str
 
 // The row owns its input strings so partial input ("22.", "") works; it writes
 // parsed numbers back to the store on every change (which persists to IndexedDB).
-export default function SetRow({ set, index, pr, onChange, onToggle, onRemove }: SetRowProps) {
+export default function SetRow({ set, index, pr, lastWeight, lastReps, onChange, onToggle, onRemove }: SetRowProps) {
   const [weight, setWeight] = useState(() => numStr(set.weight))
   const [reps, setReps] = useState(() => numStr(set.reps))
   const [rpe, setRpe] = useState(() => numStr(set.rpe))
   const done = !!set.completedAt
   const isPR = done && hasPR(pr)
   const prLabel = pr?.e1rm ? 'New 1RM PR' : pr?.weight ? 'Weight PR' : ''
+
+  // Ghost text in inputs: when the field is empty (0), show last session's value
+  // so the user can see what they lifted before without it looking like a filled value.
+  const weightPlaceholder = !done && lastWeight ? String(lastWeight) : '0'
+  const repsPlaceholder = !done && lastReps ? String(lastReps) : '0'
 
   return (
     <>
@@ -45,7 +52,7 @@ export default function SetRow({ set, index, pr, onChange, onToggle, onRemove }:
         <input
           className="set-input"
           inputMode="decimal"
-          placeholder="0"
+          placeholder={weightPlaceholder}
           value={weight}
           onChange={e => {
             const v = e.target.value
@@ -58,7 +65,7 @@ export default function SetRow({ set, index, pr, onChange, onToggle, onRemove }:
         <input
           className="set-input"
           inputMode="numeric"
-          placeholder="0"
+          placeholder={repsPlaceholder}
           value={reps}
           onChange={e => {
             const v = e.target.value

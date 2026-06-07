@@ -510,51 +510,46 @@ body {
   border-color: rgb(var(--color-accent));
 }
 
-/* ─── Global rest-timer bar ──────────────────────────────── */
-.rest-bar {
+/* ─── Global rest-timer card (circular countdown) ───────── */
+.rest-timer-card {
   position: fixed;
-  left: 8px;
-  right: 8px;
+  left: 12px;
+  right: 12px;
   bottom: calc(var(--tab-bar-height) + var(--safe-bottom) + 8px);
   background: rgb(var(--color-surface));
   border: 1px solid rgb(var(--color-border));
-  border-radius: var(--radius-lg);
-  box-shadow: 0 8px 32px rgba(0 0 0 / 0.4), 0 2px 8px rgba(0 0 0 / 0.2);
-  overflow: hidden;
+  border-radius: var(--radius-xl);
+  box-shadow: 0 16px 48px rgba(0 0 0 / 0.55), 0 4px 16px rgba(0 0 0 / 0.3);
   z-index: 60;
 }
 
-.rest-bar-progress {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 3px;
-  transition: width 0.25s linear;
-}
-
-.rest-bar-inner {
+.rest-timer-inner {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 12px 14px;
+  padding: 24px 24px 20px;
 }
 
-.rest-ctrl {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+.rest-ctrl-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
   border: 1.5px solid rgb(var(--color-border));
   background: rgb(var(--color-surface-2));
   color: rgb(var(--color-text));
-  display: flex;
-  align-items: center;
-  justify-content: center;
   cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  min-width: 58px;
   -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease;
 }
-.rest-ctrl:active { transform: scale(0.92); }
-.rest-skip { color: rgb(var(--color-text-muted)); }
+.rest-ctrl-btn:active { transform: scale(0.92); }
 
 /* ─── Routine reorder buttons ────────────────────────────── */
 .reorder-btn {

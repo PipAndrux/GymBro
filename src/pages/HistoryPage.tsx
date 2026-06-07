@@ -62,7 +62,10 @@ export default function HistoryPage() {
         {items.length === 0 ? (
           <div className="empty-state">
             <HistoryIcon size={40} strokeWidth={1.5} />
-            <p>No finished workouts yet. Complete one and it'll show up here.</p>
+            <p>No finished workouts yet.</p>
+            <button className="btn btn-primary" onClick={() => navigate('/')}>
+              Start your first workout
+            </button>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

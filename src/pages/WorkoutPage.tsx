@@ -153,7 +153,7 @@ export default function WorkoutPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 14 }}>
             <MacroStat label="Protein" value={totals.protein} goal={protGoal} color="#3b82f6" />
             <MacroStat label="Carbs"   value={totals.carbs}   goal={carbGoal} color="#f97316" />
-            <MacroStat label="Fat"     value={totals.fat}     goal={fatGoal}  color="#eab308" />
+            <MacroStat label="Fat"     value={totals.fat}     goal={fatGoal}  color="#ef4444" />
           </div>
         </div>
 
