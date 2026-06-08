@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from 'react'
+import { useEffect, lazy, Suspense, useState } from 'react'
 import { Routes, Route, NavLink, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Dumbbell, ListOrdered, Apple, Settings } from 'lucide-react'
@@ -14,6 +14,7 @@ import HistoryPage from './pages/HistoryPage'
 import HistoryDetailPage from './pages/HistoryDetailPage'
 import WorkoutSummaryPage from './pages/WorkoutSummaryPage'
 import RestTimerBar from './components/RestTimerBar'
+import LandingPage from './pages/LandingPage'
 
 // Progress and measurement screens pull in recharts — load on demand.
 const ProgressPage = lazy(() => import('./pages/ProgressPage'))
@@ -35,10 +36,22 @@ const pageVariants = {
   exit: { opacity: 0, y: -6 },
 }
 
+const ONBOARDED_KEY = 'gymbro_onboarded'
+
 export default function App() {
   const location = useLocation()
   const { theme } = useSettings()
   const initAuth = useAuth(s => s.initialize)
+  const { user, initialized } = useAuth()
+  const [onboarded, setOnboarded] = useState(() => !!localStorage.getItem(ONBOARDED_KEY))
+
+  // Mark onboarded when user logs in via the landing page
+  useEffect(() => {
+    if (user && !onboarded) {
+      localStorage.setItem(ONBOARDED_KEY, '1')
+      setOnboarded(true)
+    }
+  }, [user, onboarded])
 
   useEffect(() => {
     void useSession.getState().resumeActive()
@@ -51,6 +64,18 @@ export default function App() {
     if (theme === 'system') html.removeAttribute('data-theme')
     else html.setAttribute('data-theme', theme)
   }, [theme])
+
+  // Show landing page on first visit (auth initialized, not logged in, never dismissed)
+  if (initialized && !user && !onboarded) {
+    return (
+      <LandingPage
+        onGuest={() => {
+          localStorage.setItem(ONBOARDED_KEY, '1')
+          setOnboarded(true)
+        }}
+      />
+    )
+  }
 
   return (
     <>
