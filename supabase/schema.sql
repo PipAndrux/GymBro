@@ -166,6 +166,10 @@ begin
     execute format('drop trigger if exists trg_suat on public.%I', t);
     execute format('create trigger trg_suat before insert or update on public.%I for each row execute function public.set_server_updated_at()', t);
 
+    -- base table privileges — required IN ADDITION to RLS. Without these the
+    -- authenticated role gets a 403 (42501) before any policy is evaluated.
+    execute format('grant select, insert, update, delete on public.%I to authenticated', t);
+
     -- row level security: own rows only
     execute format('alter table public.%I enable row level security', t);
     execute format('drop policy if exists own_rows on public.%I', t);
