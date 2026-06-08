@@ -9,6 +9,7 @@ import { useAuth } from '../store/authStore'
 import { supabaseConfigured } from '../lib/supabase'
 import { MEASUREMENT_TYPE_DEFS } from '../lib/measurementTypes'
 import BottomSheet from '../components/BottomSheet'
+import SyncIndicator from '../components/SyncIndicator'
 
 // ── Export/import helpers ──────────────────────────────────────────────────────
 
@@ -342,7 +343,8 @@ function UserCard({ user, onSignOut }: { user: { email?: string; user_metadata?:
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 700, fontSize: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
-        <div style={{ fontSize: 13, color: 'rgb(var(--color-text-muted))', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</div>
+        <div style={{ fontSize: 13, color: 'rgb(var(--color-text-muted))', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>{email}</div>
+        <SyncIndicator />
       </div>
       <button className="icon-btn" style={{ color: 'rgb(var(--color-text-muted))' }} onClick={onSignOut} aria-label="sign out">
         <LogOut size={18} />

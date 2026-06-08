@@ -583,3 +583,7 @@ body {
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 .nav-card:active { transform: scale(0.99); }
+
+/* ─── Spin (sync indicator) ──────────────────────────────── */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 1s linear infinite; }

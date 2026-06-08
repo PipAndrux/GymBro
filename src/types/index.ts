@@ -113,6 +113,13 @@ export interface Setting {
   value: string | number | boolean
 }
 
+/** Per-user cloud-sync cursors (Phase 6). One row per signed-in Supabase user. */
+export interface SyncState {
+  id: string                       // Supabase user id (auth.uid())
+  lastPushedAt: number             // max local updatedAt already pushed (local clock)
+  lastPulledServerAt: string | null // max server_updated_at already pulled (server clock, ISO)
+}
+
 export interface Measurement {
   uuid: string
   type: string

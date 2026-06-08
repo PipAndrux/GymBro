@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie'
-import type { Exercise, Routine, Workout, WorkoutSet, Food, FoodEntry, DailyGoal, Setting, Measurement, MeasurementEntry } from '../types'
+import type { Exercise, Routine, Workout, WorkoutSet, Food, FoodEntry, DailyGoal, Setting, Measurement, MeasurementEntry, SyncState } from '../types'
 import { EXERCISE_SEED } from '../data/exercises.seed'
 
 class FitTrackerDB extends Dexie {
@@ -13,6 +13,7 @@ class FitTrackerDB extends Dexie {
   settings!: Table<Setting, string>
   measurements!: Table<Measurement, string>
   measurementEntries!: Table<MeasurementEntry, string>
+  syncState!: Table<SyncState, string>
 
   constructor() {
     super('FitTrackerDB')
@@ -39,6 +40,22 @@ class FitTrackerDB extends Dexie {
       settings: '&key',
       measurements: '&uuid, type, sortOrder, updatedAt, deletedAt',
       measurementEntries: '&uuid, measurementUuid, date, updatedAt, deletedAt',
+    })
+
+    // v3 — cloud sync (Phase 6): per-user push/pull cursors. All existing
+    // stores carry over unchanged; only the syncState table is added.
+    this.version(3).stores({
+      exercises: '&uuid, name, primaryMuscle, equipment, category, isCustom, updatedAt, deletedAt',
+      routines: '&uuid, name, createdAt, updatedAt, deletedAt',
+      workouts: '&uuid, routineUuid, startedAt, endedAt, status, updatedAt, deletedAt',
+      sets: '&uuid, workoutUuid, exerciseUuid, completedAt, updatedAt, deletedAt',
+      foods: '&uuid, name, isCustom, updatedAt, deletedAt',
+      foodEntries: '&uuid, date, foodUuid, mealType, updatedAt, deletedAt',
+      dailyGoals: '&uuid, date, updatedAt, deletedAt',
+      settings: '&key',
+      measurements: '&uuid, type, sortOrder, updatedAt, deletedAt',
+      measurementEntries: '&uuid, measurementUuid, date, updatedAt, deletedAt',
+      syncState: '&id',
     })
 
     // Seed built-in exercises on first DB creation

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
+import { setSyncUser } from '../lib/sync/engine'
 import type { User } from '@supabase/supabase-js'
 
 interface AuthState {
@@ -27,11 +28,15 @@ export const useAuth = create<AuthState>(set => ({
     }
     // Restore existing session from storage
     void supabase.auth.getSession().then(({ data }) => {
-      set({ user: data.session?.user ?? null, initialized: true })
+      const user = data.session?.user ?? null
+      set({ user, initialized: true })
+      setSyncUser(user?.id ?? null)
     })
     // Keep store in sync with any future auth events (sign in, sign out, token refresh)
     supabase.auth.onAuthStateChange((_event, session) => {
-      set({ user: session?.user ?? null })
+      const user = session?.user ?? null
+      set({ user })
+      setSyncUser(user?.id ?? null)
     })
   },
 
