@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ChevronLeft, ChevronRight, Plus, Trash2, Target } from 'lucide-react'
-import { db } from '../db'
+import { db, dailyGoalUuid, consolidateDailyGoals } from '../db'
 import type { DailyGoal, Food, FoodEntry, MealType } from '../types'
 import { macrosForGrams, todayStr, offsetDate, formatDateDisplay, DEFAULT_GOALS, type MacroResult } from '../lib/foodCalc'
 import LogFoodSheet from '../components/LogFoodSheet'
@@ -24,6 +24,9 @@ export default function FoodPage() {
   const [dateStr, setDateStr] = useState(todayStr)
   const [logMeal, setLogMeal] = useState<MealType | null>(null)
   const [editGoalsOpen, setEditGoalsOpen] = useState(false)
+
+  // Collapse any duplicate per-date goals (e.g. set on another device pre-sync).
+  useEffect(() => { void consolidateDailyGoals() }, [])
 
   const data = useLiveQuery(async (): Promise<DayData> => {
     const entries = await db.foodEntries
@@ -254,7 +257,9 @@ function EditGoalsSheet({ date, goal, onClose }: EditGoalsProps) {
     try {
       const now = Date.now()
       const record: DailyGoal = {
-        uuid: goal?.uuid ?? crypto.randomUUID(),
+        // Deterministic per-date uuid → same day's goal edited on two devices
+        // converges instead of creating a duplicate goal row after sync.
+        uuid: dailyGoalUuid(date),
         date,
         calorieGoal: parseFloat(cal) || DEFAULT_GOALS.calorieGoal,
         proteinGoal: parseFloat(prot) || DEFAULT_GOALS.proteinGoal,
@@ -264,6 +269,12 @@ function EditGoalsSheet({ date, goal, onClose }: EditGoalsProps) {
         deletedAt: null,
       }
       await db.dailyGoals.put(record)
+      // Retire any legacy/random-id goal for this date so only one survives.
+      const stale = await db.dailyGoals
+        .where('date').equals(date)
+        .filter(g => g.uuid !== record.uuid && g.deletedAt === null)
+        .toArray()
+      for (const g of stale) await db.dailyGoals.update(g.uuid, { deletedAt: now, updatedAt: now })
       onClose()
     } finally {
       setSaving(false)

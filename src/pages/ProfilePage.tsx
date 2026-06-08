@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate } from 'react-router-dom'
 import { Download, Upload, Info, LogOut, ChevronRight, Plus, TrendingUp, ArrowUp, ArrowDown } from 'lucide-react'
-import { db, ensurePrimaryMeasurements } from '../db'
+import { db, consolidateMeasurements, measurementUuidForType } from '../db'
 import type { Measurement } from '../types'
 import { useSettings, setSetting, type Unit, type ThemePreference } from '../lib/settings'
 import { useAuth } from '../store/authStore'
@@ -79,9 +79,6 @@ export default function ProfilePage() {
   const [restoring, setRestoring] = useState(false)
   const [addMeasurementOpen, setAddMeasurementOpen] = useState(false)
 
-  // Ensure height and weight measurements always exist
-  useEffect(() => { void ensurePrimaryMeasurements() }, [])
-
   // Live list of all active measurements with their latest entry
   const measurementsWithLatest = useLiveQuery(async () => {
     const measurements = await db.measurements
@@ -100,6 +97,12 @@ export default function ProfilePage() {
       })
     )
   }, [])
+
+  // Ensure primaries exist and collapse any duplicate cards (e.g. weight/height
+  // created with different ids on another device). Idempotent + reactive: re-runs
+  // when the count changes, so duplicates arriving via sync are cleaned up live.
+  const measurementCount = measurementsWithLatest?.length ?? 0
+  useEffect(() => { void consolidateMeasurements() }, [measurementCount])
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null
@@ -125,12 +128,15 @@ export default function ProfilePage() {
     const existing = await db.measurements.filter(m => m.type === type && m.deletedAt === null).count()
     if (existing > 0) { setAddMeasurementOpen(false); return }
     const allCount = await db.measurements.filter(m => m.deletedAt === null).count()
+    // Deterministic uuid per predefined type → the same type added on two devices
+    // converges to one card instead of duplicating after sync. put (not add) so a
+    // previously soft-deleted record of this type is revived rather than colliding.
     const newM: Measurement = {
-      uuid: crypto.randomUUID(), type, label, unit,
+      uuid: measurementUuidForType(type), type, label, unit,
       isCustom: false, sortOrder: allCount,
       updatedAt: now, deletedAt: null,
     }
-    await db.measurements.add(newM)
+    await db.measurements.put(newM)
     setAddMeasurementOpen(false)
     navigate(`/measurements/${newM.uuid}`)
   }
