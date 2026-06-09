@@ -68,7 +68,6 @@ body {
   background-color: rgb(var(--color-bg));
   color: rgb(var(--color-text));
   overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
 }
 
 #root {
@@ -204,6 +203,7 @@ body {
   z-index: 100;
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
+  touch-action: none; /* block scroll-through on iOS */
 }
 
 .sheet {
@@ -224,6 +224,7 @@ body {
 }
 
 /* Freeze the page behind an open bottom sheet so touch-scrolling stays in the sheet. */
+html.sheet-open body,
 html.sheet-open .page-content {
   overflow: hidden;
 }
