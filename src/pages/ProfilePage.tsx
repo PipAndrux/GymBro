@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate } from 'react-router-dom'
-import { Download, Upload, Info, LogOut, ChevronRight, Plus, TrendingUp, ArrowUp, ArrowDown, Trophy, Flame, Zap, Award, Dumbbell, Star, Lock } from 'lucide-react'
+import { Download, Upload, Info, LogOut, ChevronRight, Plus, TrendingUp, ArrowUp, ArrowDown, Trophy, Flame, Zap, Award, Dumbbell, Star, Lock, FileText, FileSpreadsheet, Bell, BellOff } from 'lucide-react'
 import { db, consolidateMeasurements, measurementUuidForType } from '../db'
 import type { Measurement } from '../types'
-import { useSettings, setSetting, type Unit, type ThemePreference } from '../lib/settings'
+import { useSettings, setSetting, ACCENT_PALETTES, type Unit, type ThemePreference, type AccentColor } from '../lib/settings'
+import { exportWorkoutsCsv, exportRoutinesCsv } from '../lib/exportCsv'
+import { exportWorkoutsPdf, exportRoutinesPdf } from '../lib/exportPdf'
 import { useAuth } from '../store/authStore'
 import { supabaseConfigured } from '../lib/supabase'
 import { MEASUREMENT_TYPE_DEFS } from '../lib/measurementTypes'
@@ -71,7 +73,7 @@ async function importBackup(file: File): Promise<void> {
 
 export default function ProfilePage() {
   const navigate = useNavigate()
-  const { units, defaultRestSeconds, theme } = useSettings()
+  const { units, defaultRestSeconds, theme, accentColor, notificationsEnabled } = useSettings()
   const { user, signOut } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [importFile, setImportFile] = useState<File | null>(null)
@@ -279,14 +281,67 @@ export default function ProfilePage() {
             ))}
           </div>
         </SettingRow>
+        <SettingRow label="Accent color" border>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {(Object.entries(ACCENT_PALETTES) as [AccentColor, typeof ACCENT_PALETTES[AccentColor]][]).map(([id, p]) => (
+              <button
+                key={id}
+                aria-label={id}
+                onClick={() => void setSetting('accentColor', id)}
+                style={{
+                  width: 28, height: 28, borderRadius: '50%', cursor: 'pointer',
+                  background: p.hex, border: 'none', padding: 0,
+                  outline: accentColor === id ? `3px solid ${p.hex}` : '3px solid transparent',
+                  outlineOffset: 2,
+                  transition: 'outline 0.15s ease',
+                }}
+              />
+            ))}
+          </div>
+        </SettingRow>
+      </Section>
+
+      {/* ── Notifications ────────────────────────────────────── */}
+      <Section title="Notifications">
+        <NotificationsRow enabled={notificationsEnabled} onToggle={async (on) => {
+          if (on) {
+            if (!('Notification' in window)) return
+            const perm = await Notification.requestPermission()
+            if (perm === 'granted') {
+              await setSetting('notificationsEnabled', true)
+              new Notification('GymBro', { body: 'Workout reminders are on. We\'ll nudge you when you go quiet.' })
+            }
+          } else {
+            await setSetting('notificationsEnabled', false)
+          }
+        }} />
       </Section>
 
       {/* ── Data ─────────────────────────────────────────────── */}
       <Section title="Data">
         <p style={{ margin: '0 0 14px', fontSize: 13, color: 'rgb(var(--color-text-muted))', lineHeight: 1.5 }}>
-          All your data lives on this device. Export a JSON backup to keep a copy or transfer it.
+          All your data lives on this device. Export a backup to keep a copy, share with a coach, or import into a spreadsheet.
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgb(var(--color-text-muted))', marginTop: 4 }}>Workouts</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-secondary" style={{ flex: 1, gap: 8, fontSize: 13 }} onClick={() => void exportWorkoutsPdf(units)}>
+              <FileText size={16} /> PDF
+            </button>
+            <button className="btn btn-secondary" style={{ flex: 1, gap: 8, fontSize: 13 }} onClick={() => void exportWorkoutsCsv(units)}>
+              <FileSpreadsheet size={16} /> CSV
+            </button>
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgb(var(--color-text-muted))', marginTop: 4 }}>Routines</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-secondary" style={{ flex: 1, gap: 8, fontSize: 13 }} onClick={() => void exportRoutinesPdf()}>
+              <FileText size={16} /> PDF
+            </button>
+            <button className="btn btn-secondary" style={{ flex: 1, gap: 8, fontSize: 13 }} onClick={() => void exportRoutinesCsv()}>
+              <FileSpreadsheet size={16} /> CSV
+            </button>
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgb(var(--color-text-muted))', marginTop: 4 }}>Full backup</div>
           <button className="btn btn-secondary" style={{ width: '100%', gap: 10 }} onClick={() => void exportBackup()}>
             <Download size={18} /> Export JSON backup
           </button>
@@ -591,6 +646,50 @@ function SettingRow({ label, border = false, children }: { label: string; border
     }}>
       <span style={{ fontSize: 15, fontWeight: 500 }}>{label}</span>
       {children}
+    </div>
+  )
+}
+
+function NotificationsRow({ enabled, onToggle }: { enabled: boolean; onToggle: (on: boolean) => Promise<void> }) {
+  const unsupported = !('Notification' in window)
+  const denied = !unsupported && Notification.permission === 'denied'
+
+  return (
+    <div style={{ padding: '4px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 15, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>
+            {enabled ? <Bell size={16} style={{ color: 'rgb(var(--color-accent))' }} /> : <BellOff size={16} style={{ color: 'rgb(var(--color-text-muted))' }} />}
+            Workout reminders
+          </div>
+          {unsupported && (
+            <div style={{ fontSize: 12, color: 'rgb(var(--color-text-muted))', marginTop: 3 }}>Not supported in this browser.</div>
+          )}
+          {denied && (
+            <div style={{ fontSize: 12, color: '#f59e0b', marginTop: 3 }}>Blocked in browser settings — enable in your device's notification settings.</div>
+          )}
+          {!unsupported && !denied && (
+            <div style={{ fontSize: 12, color: 'rgb(var(--color-text-muted))', marginTop: 3 }}>
+              Note: iOS PWAs don't support background notifications.
+            </div>
+          )}
+        </div>
+        <button
+          disabled={unsupported || denied}
+          onClick={() => void onToggle(!enabled)}
+          style={{
+            width: 44, height: 26, borderRadius: 13, border: 'none', cursor: unsupported || denied ? 'default' : 'pointer',
+            background: enabled ? 'rgb(var(--color-accent))' : 'rgb(var(--color-surface-2))',
+            position: 'relative', transition: 'background 0.2s ease', flexShrink: 0,
+            opacity: unsupported || denied ? 0.4 : 1,
+          }}
+        >
+          <span style={{
+            position: 'absolute', top: 3, left: enabled ? 21 : 3, width: 20, height: 20,
+            borderRadius: '50%', background: '#fff', transition: 'left 0.2s ease',
+          }} />
+        </button>
+      </div>
     </div>
   )
 }

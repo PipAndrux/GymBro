@@ -3,6 +3,7 @@ import { Routes, Route, NavLink, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Dumbbell, ListOrdered, Apple, Users, Settings } from 'lucide-react'
 import { useAuth } from './store/authStore'
+import OnboardingSheet, { isSetupDone, markSetupDone } from './components/OnboardingSheet'
 import WorkoutPage from './pages/WorkoutPage'
 import RoutinesPage from './pages/RoutinesPage'
 import FoodPage from './pages/FoodPage'
@@ -26,7 +27,7 @@ const ReportsPage = lazy(() => import('./pages/ReportsPage'))
 // Social is online-only and pulls in its own components — load on demand.
 const SocialPage = lazy(() => import('./pages/SocialPage'))
 import { useSession } from './store/sessionStore'
-import { useSettings } from './lib/settings'
+import { useSettings, ACCENT_PALETTES } from './lib/settings'
 
 const tabs = [
   { to: '/', label: 'Workout', Icon: Dumbbell },
@@ -46,10 +47,11 @@ const ONBOARDED_KEY = 'gymbro_onboarded'
 
 export default function App() {
   const location = useLocation()
-  const { theme } = useSettings()
+  const { theme, accentColor } = useSettings()
   const initAuth = useAuth(s => s.initialize)
   const { user, initialized } = useAuth()
   const [onboarded, setOnboarded] = useState(() => !!localStorage.getItem(ONBOARDED_KEY))
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   // Mark onboarded when user logs in via the landing page
   useEffect(() => {
@@ -64,12 +66,25 @@ export default function App() {
     initAuth()
   }, [initAuth])
 
+  // Show onboarding once after the user first enters the app (dismisses landing page).
+  useEffect(() => {
+    if (onboarded && !isSetupDone()) setShowOnboarding(true)
+  }, [onboarded])
+
   // Apply manual theme override to <html> element.
   useEffect(() => {
     const html = document.documentElement
     if (theme === 'system') html.removeAttribute('data-theme')
     else html.setAttribute('data-theme', theme)
   }, [theme])
+
+  // Apply accent color CSS variables to <html> element.
+  useEffect(() => {
+    const palette = ACCENT_PALETTES[accentColor]
+    const html = document.documentElement
+    html.style.setProperty('--color-accent', palette.main)
+    html.style.setProperty('--color-accent-dim', palette.dim)
+  }, [accentColor])
 
   // Show landing page on first visit (auth initialized, not logged in, never dismissed)
   if (initialized && !user && !onboarded) {
@@ -85,6 +100,9 @@ export default function App() {
 
   return (
     <>
+      {showOnboarding && (
+        <OnboardingSheet onDone={() => { markSetupDone(); setShowOnboarding(false) }} />
+      )}
       <AnimatePresence mode="wait">
         <motion.div
           key={location.pathname}
