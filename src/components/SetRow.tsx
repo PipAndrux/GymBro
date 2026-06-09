@@ -1,9 +1,18 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Check, X, Trophy } from 'lucide-react'
-import type { WorkoutSet } from '../types'
+import { Check, X, Trophy, Layers2 } from 'lucide-react'
+import type { WorkoutSet, SetType } from '../types'
 import { unlockAudio } from '../lib/feedback'
 import { hasPR, type PRFlags } from '../lib/prs'
+
+const SET_TYPES: SetType[] = ['normal', 'warmup', 'dropset', 'failure']
+
+const SET_TYPE_META: Record<SetType, { label: string; color: string }> = {
+  normal:  { label: '',  color: '' },
+  warmup:  { label: 'W', color: '#3b82f6' },
+  dropset: { label: 'D', color: '#f97316' },
+  failure: { label: 'F', color: '#ef4444' },
+}
 
 interface SetRowProps {
   set: WorkoutSet
@@ -11,16 +20,15 @@ interface SetRowProps {
   pr?: PRFlags
   lastWeight?: number
   lastReps?: number
-  onChange: (patch: Partial<Pick<WorkoutSet, 'weight' | 'reps' | 'rpe'>>) => void
+  onChange: (patch: Partial<Pick<WorkoutSet, 'weight' | 'reps' | 'rpe' | 'setType'>>) => void
   onToggle: () => void
   onRemove: () => void
+  onOpenPlateCalc?: (weight: number) => void
 }
 
 const numStr = (n: number | undefined) => (n === undefined || n === 0 ? '' : String(n))
 
-// The row owns its input strings so partial input ("22.", "") works; it writes
-// parsed numbers back to the store on every change (which persists to IndexedDB).
-export default function SetRow({ set, index, pr, lastWeight, lastReps, onChange, onToggle, onRemove }: SetRowProps) {
+export default function SetRow({ set, index, pr, lastWeight, lastReps, onChange, onToggle, onRemove, onOpenPlateCalc }: SetRowProps) {
   const [weight, setWeight] = useState(() => numStr(set.weight))
   const [reps, setReps] = useState(() => numStr(set.reps))
   const [rpe, setRpe] = useState(() => numStr(set.rpe))
@@ -28,10 +36,17 @@ export default function SetRow({ set, index, pr, lastWeight, lastReps, onChange,
   const isPR = done && hasPR(pr)
   const prLabel = pr?.e1rm ? 'New 1RM PR' : pr?.weight ? 'Weight PR' : ''
 
-  // Ghost text in inputs: when the field is empty (0), show last session's value
-  // so the user can see what they lifted before without it looking like a filled value.
+  const currentType: SetType = set.setType ?? 'normal'
+  const typeMeta = SET_TYPE_META[currentType]
+
   const weightPlaceholder = !done && lastWeight ? String(lastWeight) : '0'
   const repsPlaceholder = !done && lastReps ? String(lastReps) : '0'
+
+  function cycleType() {
+    const idx = SET_TYPES.indexOf(currentType)
+    const next = SET_TYPES[(idx + 1) % SET_TYPES.length]
+    onChange({ setType: next })
+  }
 
   return (
     <>
@@ -47,20 +62,51 @@ export default function SetRow({ set, index, pr, lastWeight, lastReps, onChange,
       )}
 
       <div className={`set-row${done ? ' set-row-done' : ''}`}>
-        <div className="set-num">{index + 1}</div>
-
-        <input
-          className="set-input"
-          inputMode="decimal"
-          placeholder={weightPlaceholder}
-          value={weight}
-          onChange={e => {
-            const v = e.target.value
-            setWeight(v)
-            const n = parseFloat(v)
-            onChange({ weight: isNaN(n) ? 0 : n })
+        {/* Set number / type button — tap to cycle type */}
+        <button
+          className="set-num"
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 0,
+            fontFamily: 'inherit',
+            color: typeMeta.color || undefined,
+            fontWeight: typeMeta.label ? 800 : undefined,
           }}
-        />
+          onClick={cycleType}
+          aria-label={`set type: ${currentType}`}
+          title="Tap to change set type"
+        >
+          {typeMeta.label || (index + 1)}
+        </button>
+
+        {/* Weight input + plate calc */}
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <input
+            className="set-input"
+            inputMode="decimal"
+            placeholder={weightPlaceholder}
+            value={weight}
+            onChange={e => {
+              const v = e.target.value
+              setWeight(v)
+              const n = parseFloat(v)
+              onChange({ weight: isNaN(n) ? 0 : n })
+            }}
+          />
+          {onOpenPlateCalc && (
+            <button
+              className="icon-btn"
+              style={{ position: 'absolute', right: -22, color: 'rgb(var(--color-text-muted))', padding: 2 }}
+              onClick={() => onOpenPlateCalc(parseFloat(weight) || 0)}
+              aria-label="plate calculator"
+              tabIndex={-1}
+            >
+              <Layers2 size={13} />
+            </button>
+          )}
+        </div>
 
         <input
           className="set-input"
@@ -91,7 +137,7 @@ export default function SetRow({ set, index, pr, lastWeight, lastReps, onChange,
         <button
           className={`set-check${done ? ' set-check-done' : ''}`}
           onClick={() => {
-            unlockAudio() // user gesture — unlocks audio so the rest beep can play later
+            unlockAudio()
             onToggle()
           }}
           aria-label={done ? 'mark set incomplete' : 'complete set'}

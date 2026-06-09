@@ -11,6 +11,7 @@ const ORDER_KEY = 'active_session_order'
 export interface SessionExercise {
   exercise: Exercise
   restSeconds: number
+  supersetGroup?: string
 }
 
 export interface RestTimer {
@@ -20,18 +21,17 @@ export interface RestTimer {
   duration: number
 }
 
+// Serialised order entry (v2 format, backward-compatible: old format was string[])
+type OrderEntry = { uuid: string; supersetGroup?: string }
+
 interface SessionState {
   hydrated: boolean
   workout: Workout | null
   exercises: SessionExercise[]
   sets: WorkoutSet[]
-  // Global workout timer (pausable). Elapsed is derived, not ticked.
   pauseStartedAt: number | null
   pausedTotalMs: number
-  // Single active rest timer (one rest runs at a time, like Hevy/Strong).
   restTimer: RestTimer | null
-  // PR flags for sets completed this session (keyed by set uuid) — drives the
-  // live "New PR" celebration badge. Best-effort & transient (not persisted).
   prFlags: Record<string, PRFlags>
 
   // lifecycle
@@ -47,9 +47,14 @@ interface SessionState {
   removeExercise: (exerciseUuid: string) => Promise<void>
   setExerciseRest: (exerciseUuid: string, seconds: number) => void
 
+  // supersets
+  groupExercises: (uuidA: string, uuidB: string) => Promise<void>
+  ungroupExercise: (uuid: string) => Promise<void>
+
   // sets
   addSet: (exerciseUuid: string) => Promise<void>
-  updateSet: (uuid: string, patch: Partial<Pick<WorkoutSet, 'weight' | 'reps' | 'rpe'>>) => Promise<void>
+  addWarmupSets: (exerciseUuid: string, weights: number[], reps: number[]) => Promise<void>
+  updateSet: (uuid: string, patch: Partial<Pick<WorkoutSet, 'weight' | 'reps' | 'rpe' | 'setType'>>) => Promise<void>
   toggleSetComplete: (uuid: string) => Promise<void>
   removeSet: (uuid: string) => Promise<void>
 
@@ -70,15 +75,14 @@ function dayPartName(d: Date): string {
   return 'Evening Workout'
 }
 
-// The exercise order for the active session is persisted to the settings table
-// (the schema has no per-workout exercise order — only routines do), so an
-// in-progress workout fully restores after a refresh or crash.
-async function persistOrder(uuids: string[]): Promise<void> {
-  await db.settings.put({ key: ORDER_KEY, value: JSON.stringify(uuids) })
+async function persistOrder(exercises: SessionExercise[]): Promise<void> {
+  const entries: OrderEntry[] = exercises.map(e => ({
+    uuid: e.exercise.uuid,
+    ...(e.supersetGroup ? { supersetGroup: e.supersetGroup } : {}),
+  }))
+  await db.settings.put({ key: ORDER_KEY, value: JSON.stringify(entries) })
 }
 
-// Creates the workout + a first set per exercise, and persists the order.
-// Shared by single workouts and routine-launched workouts.
 async function buildSession(
   name: string,
   type: 'single' | 'routine',
@@ -107,12 +111,13 @@ async function buildSession(
     weight: 0,
     reps: 0,
     restSeconds: defaultRest,
+    setType: 'normal' as const,
     completedAt: undefined,
     updatedAt: now + i,
     deletedAt: null,
   }))
   await db.sets.bulkAdd(sets)
-  await persistOrder(exs.map(e => e.uuid))
+  await persistOrder(exercises)
   return { workout, exercises, sets }
 }
 
@@ -153,40 +158,42 @@ export const useSession = create<SessionState>((set, get) => ({
         .toArray()
     ).sort((a, b) => a.setNumber - b.setNumber)
 
-    // Rebuild exercise order from the persisted order, then any leftovers from sets.
-    let order: string[] = []
+    // Parse order — handle both old (string[]) and new (OrderEntry[]) formats
+    let orderedUuids: string[] = []
+    const supersetGroupByUuid: Record<string, string | undefined> = {}
     const orderRow = await db.settings.get(ORDER_KEY)
     if (orderRow && typeof orderRow.value === 'string') {
       try {
-        order = JSON.parse(orderRow.value) as string[]
-      } catch {
-        order = []
-      }
+        const parsed: unknown = JSON.parse(orderRow.value)
+        if (Array.isArray(parsed)) {
+          if (typeof parsed[0] === 'string') {
+            orderedUuids = parsed as string[]
+          } else {
+            const entries = parsed as OrderEntry[]
+            orderedUuids = entries.map(e => e.uuid)
+            for (const e of entries) {
+              if (e.supersetGroup) supersetGroupByUuid[e.uuid] = e.supersetGroup
+            }
+          }
+        }
+      } catch { /* ignore */ }
     }
+
     const seen = new Set<string>()
-    const orderedUuids: string[] = []
-    for (const u of order) if (!seen.has(u)) { seen.add(u); orderedUuids.push(u) }
-    for (const s of loadedSets) if (!seen.has(s.exerciseUuid)) { seen.add(s.exerciseUuid); orderedUuids.push(s.exerciseUuid) }
+    const finalOrder: string[] = []
+    for (const u of orderedUuids) if (!seen.has(u)) { seen.add(u); finalOrder.push(u) }
+    for (const s of loadedSets) if (!seen.has(s.exerciseUuid)) { seen.add(s.exerciseUuid); finalOrder.push(s.exerciseUuid) }
 
     const exercises: SessionExercise[] = []
-    for (const uuid of orderedUuids) {
+    for (const uuid of finalOrder) {
       const ex = await db.exercises.get(uuid)
       if (!ex) continue
       const exSets = loadedSets.filter(s => s.exerciseUuid === uuid)
       const rest = exSets.length ? (exSets[exSets.length - 1].restSeconds ?? DEFAULT_REST) : DEFAULT_REST
-      exercises.push({ exercise: ex, restSeconds: rest })
+      exercises.push({ exercise: ex, restSeconds: rest, supersetGroup: supersetGroupByUuid[uuid] })
     }
 
-    set({
-      hydrated: true,
-      workout,
-      exercises,
-      sets: loadedSets,
-      pauseStartedAt: null,
-      pausedTotalMs: 0,
-      restTimer: null,
-      prFlags: {},
-    })
+    set({ hydrated: true, workout, exercises, sets: loadedSets, pauseStartedAt: null, pausedTotalMs: 0, restTimer: null, prFlags: {} })
     return true
   },
 
@@ -204,7 +211,6 @@ export const useSession = create<SessionState>((set, get) => ({
     const { workout, sets } = get()
     if (!workout) return null
     const now = Date.now()
-    // Prune empty placeholder sets (never completed, nothing entered) so history stays clean.
     const empties = sets.filter(s => !s.completedAt && (s.weight ?? 0) === 0 && (s.reps ?? 0) === 0)
     for (const s of empties) {
       await db.sets.update(s.uuid, { deletedAt: now, updatedAt: now })
@@ -219,7 +225,6 @@ export const useSession = create<SessionState>((set, get) => ({
   discardWorkout: async () => {
     const { workout } = get()
     if (!workout) return
-    // An unfinished, discarded workout never became "real" — hard delete to avoid clutter.
     await db.sets.where('workoutUuid').equals(workout.uuid).delete()
     await db.workouts.delete(workout.uuid)
     await db.settings.delete(ORDER_KEY)
@@ -251,13 +256,14 @@ export const useSession = create<SessionState>((set, get) => ({
       weight: 0,
       reps: 0,
       restSeconds: defaultRest,
+      setType: 'normal' as const,
       completedAt: undefined,
       updatedAt: now + i,
       deletedAt: null,
     }))
     await db.sets.bulkAdd(newSets)
     const nextExercises = [...exercises, ...newExercises]
-    await persistOrder(nextExercises.map(e => e.exercise.uuid))
+    await persistOrder(nextExercises)
     set({ exercises: nextExercises, sets: [...sets, ...newSets] })
   },
 
@@ -267,11 +273,24 @@ export const useSession = create<SessionState>((set, get) => ({
     const toRemove = sets.filter(s => s.exerciseUuid === exerciseUuid && s.deletedAt === null)
     for (const s of toRemove) await db.sets.update(s.uuid, { deletedAt: now, updatedAt: now })
     const nextExercises = exercises.filter(e => e.exercise.uuid !== exerciseUuid)
-    await persistOrder(nextExercises.map(e => e.exercise.uuid))
+
+    // If the removed exercise was in a superset and now its partner is alone, clean up the group
+    const removedGroup = exercises.find(e => e.exercise.uuid === exerciseUuid)?.supersetGroup
+    let cleanedExercises = nextExercises
+    if (removedGroup) {
+      const remaining = nextExercises.filter(e => e.supersetGroup === removedGroup)
+      if (remaining.length <= 1) {
+        cleanedExercises = nextExercises.map(e =>
+          e.supersetGroup === removedGroup ? { ...e, supersetGroup: undefined } : e
+        )
+      }
+    }
+
+    await persistOrder(cleanedExercises)
     const nextPrFlags = { ...prFlags }
     for (const s of toRemove) delete nextPrFlags[s.uuid]
     set({
-      exercises: nextExercises,
+      exercises: cleanedExercises,
       sets: sets.filter(s => s.exerciseUuid !== exerciseUuid),
       restTimer: restTimer?.exerciseUuid === exerciseUuid ? null : restTimer,
       prFlags: nextPrFlags,
@@ -287,6 +306,37 @@ export const useSession = create<SessionState>((set, get) => ({
     })
   },
 
+  groupExercises: async (uuidA, uuidB) => {
+    const { exercises } = get()
+    // If either is already in a group, use that group; otherwise create a new one
+    const existingGroup =
+      exercises.find(e => e.exercise.uuid === uuidA)?.supersetGroup ||
+      exercises.find(e => e.exercise.uuid === uuidB)?.supersetGroup ||
+      crypto.randomUUID()
+    const next = exercises.map(e =>
+      e.exercise.uuid === uuidA || e.exercise.uuid === uuidB
+        ? { ...e, supersetGroup: existingGroup }
+        : e
+    )
+    set({ exercises: next })
+    await persistOrder(next)
+  },
+
+  ungroupExercise: async (uuid) => {
+    const { exercises } = get()
+    const group = exercises.find(e => e.exercise.uuid === uuid)?.supersetGroup
+    if (!group) return
+    // Remove this exercise from the group
+    let next = exercises.map(e => e.exercise.uuid === uuid ? { ...e, supersetGroup: undefined } : e)
+    // If only one exercise remains in the group, dissolve it too
+    const remaining = next.filter(e => e.supersetGroup === group)
+    if (remaining.length <= 1) {
+      next = next.map(e => e.supersetGroup === group ? { ...e, supersetGroup: undefined } : e)
+    }
+    set({ exercises: next })
+    await persistOrder(next)
+  },
+
   addSet: async (exerciseUuid) => {
     const { sets, exercises, workout } = get()
     if (!workout) return
@@ -295,7 +345,6 @@ export const useSession = create<SessionState>((set, get) => ({
       .filter(s => s.exerciseUuid === exerciseUuid && s.deletedAt === null)
       .sort((a, b) => a.setNumber - b.setNumber)
     const last = exSets[exSets.length - 1]
-    // Carry forward the previous set's weight/reps so logging the next set is fast.
     const newSet: WorkoutSet = {
       uuid: crypto.randomUUID(),
       workoutUuid: workout.uuid,
@@ -305,12 +354,38 @@ export const useSession = create<SessionState>((set, get) => ({
       reps: last?.reps ?? 0,
       rpe: last?.rpe,
       restSeconds: exRest,
+      setType: 'normal',
       completedAt: undefined,
       updatedAt: Date.now(),
       deletedAt: null,
     }
     await db.sets.add(newSet)
     set({ sets: [...sets, newSet] })
+  },
+
+  addWarmupSets: async (exerciseUuid, weights, repsArr) => {
+    const { sets, exercises, workout } = get()
+    if (!workout) return
+    const exRest = exercises.find(e => e.exercise.uuid === exerciseUuid)?.restSeconds ?? DEFAULT_REST
+    const exSets = sets
+      .filter(s => s.exerciseUuid === exerciseUuid && s.deletedAt === null)
+      .sort((a, b) => a.setNumber - b.setNumber)
+    const now = Date.now()
+    const newSets: WorkoutSet[] = weights.map((w, i) => ({
+      uuid: crypto.randomUUID(),
+      workoutUuid: workout.uuid,
+      exerciseUuid,
+      setNumber: exSets.length + i + 1,
+      weight: w,
+      reps: repsArr[i] ?? 5,
+      restSeconds: exRest,
+      setType: 'warmup' as const,
+      completedAt: undefined,
+      updatedAt: now + i,
+      deletedAt: null,
+    }))
+    await db.sets.bulkAdd(newSets)
+    set({ sets: [...sets, ...newSets] })
   },
 
   updateSet: async (uuid, patch) => {
@@ -331,10 +406,23 @@ export const useSession = create<SessionState>((set, get) => ({
     await db.sets.update(uuid, { completedAt, updatedAt: now })
 
     if (willComplete) {
-      // Completing a set kicks off that exercise's rest timer.
-      const exRest = exercises.find(e => e.exercise.uuid === target.exerciseUuid)?.restSeconds ?? DEFAULT_REST
-      if (exRest > 0) get().startRest(target.exerciseUuid, exRest)
-      // Is this lift a personal record? Detect against all prior completed sets.
+      const exEntry = exercises.find(e => e.exercise.uuid === target.exerciseUuid)
+      const exRest = exEntry?.restSeconds ?? DEFAULT_REST
+      const supersetGroup = exEntry?.supersetGroup
+
+      // For supersets: only fire rest when all group members have equal completed-set count.
+      let shouldRest = true
+      if (supersetGroup) {
+        const groupExs = exercises.filter(e => e.supersetGroup === supersetGroup)
+        const updatedSets = get().sets
+        const counts = groupExs.map(e =>
+          updatedSets.filter(s => s.exerciseUuid === e.exercise.uuid && s.completedAt && s.deletedAt === null).length
+        )
+        shouldRest = counts.every(c => c === counts[0])
+      }
+
+      if (shouldRest && exRest > 0) get().startRest(target.exerciseUuid, exRest)
+
       const flags = await detectSetPR({ ...target, completedAt })
       if (hasPR(flags)) {
         set({ prFlags: { ...get().prFlags, [uuid]: flags } })
@@ -342,7 +430,6 @@ export const useSession = create<SessionState>((set, get) => ({
         vibrate([0, 60, 40, 60, 40, 120])
       }
     } else if (get().prFlags[uuid]) {
-      // Un-completing clears any PR badge it earned.
       const next = { ...get().prFlags }
       delete next[uuid]
       set({ prFlags: next })
@@ -357,15 +444,12 @@ export const useSession = create<SessionState>((set, get) => ({
     const remaining = sets.filter(
       s => s.exerciseUuid === exerciseUuid && s.deletedAt === null && s.uuid !== uuid
     )
-    // Removing the last set of an exercise removes the exercise from the session
-    // (keeps the invariant: every session exercise has at least one set row).
     if (remaining.length === 0) {
       await get().removeExercise(exerciseUuid)
       return
     }
     const now = Date.now()
     await db.sets.update(uuid, { deletedAt: now, updatedAt: now })
-    // Renumber the remaining sets so set numbers stay sequential.
     const ordered = remaining.sort((a, b) => a.setNumber - b.setNumber)
     const renumbered = new Map<string, number>()
     ordered.forEach((s, i) => {

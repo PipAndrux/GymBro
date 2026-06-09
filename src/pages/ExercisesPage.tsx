@@ -1,28 +1,21 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, Plus, Search, Dumbbell, Star } from 'lucide-react'
+import { ChevronLeft, Plus, Search, Dumbbell, Star, Info } from 'lucide-react'
 import { db } from '../db'
 import type { Exercise, MuscleGroup, Equipment } from '../types'
 import { MUSCLE_FILTERS, EQUIPMENT_FILTERS, MUSCLE_COLORS } from '../lib/exerciseMeta'
 import BottomSheet from '../components/BottomSheet'
 import AddExerciseForm from '../components/AddExerciseForm'
+import ExerciseDetailSheet from '../components/ExerciseDetailSheet'
 
 // ─── Exercise Row ─────────────────────────────────────────────────────────────
 
-function ExerciseRow({ exercise }: { exercise: Exercise }) {
+function ExerciseRow({ exercise, onInfo }: { exercise: Exercise; onInfo: () => void }) {
   const color = MUSCLE_COLORS[exercise.primaryMuscle]
   return (
     <div style={rowStyle}>
-      <div
-        style={{
-          width: 3,
-          borderRadius: 2,
-          backgroundColor: color,
-          flexShrink: 0,
-          alignSelf: 'stretch',
-        }}
-      />
+      <div style={{ width: 3, borderRadius: 2, backgroundColor: color, flexShrink: 0, alignSelf: 'stretch' }} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontWeight: 600, fontSize: 15, color: 'rgb(var(--color-text))', lineHeight: 1.3 }}>
@@ -33,14 +26,20 @@ function ExerciseRow({ exercise }: { exercise: Exercise }) {
           )}
         </div>
         <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-          <span style={{ ...chipStyle, backgroundColor: `${color}22`, color }}>
-            {exercise.primaryMuscle}
-          </span>
+          <span style={{ ...chipStyle, backgroundColor: `${color}22`, color }}>{exercise.primaryMuscle}</span>
           <span style={{ ...chipStyle, backgroundColor: 'rgb(var(--color-surface-2))', color: 'rgb(var(--color-text-muted))' }}>
             {exercise.equipment}
           </span>
         </div>
       </div>
+      <button
+        className="icon-btn"
+        style={{ color: 'rgb(var(--color-text-muted))', flexShrink: 0 }}
+        onClick={e => { e.stopPropagation(); onInfo() }}
+        aria-label={`info for ${exercise.name}`}
+      >
+        <Info size={16} />
+      </button>
     </div>
   )
 }
@@ -69,6 +68,7 @@ export default function ExercisesPage() {
   const [muscleFilter, setMuscleFilter] = useState<'all' | MuscleGroup>('all')
   const [equipFilter, setEquipFilter] = useState<'all' | Equipment>('all')
   const [showAddSheet, setShowAddSheet] = useState(false)
+  const [detailExercise, setDetailExercise] = useState<Exercise | null>(null)
 
   // Live list — automatically reflects newly added custom exercises.
   const exercises =
@@ -174,21 +174,20 @@ export default function ExercisesPage() {
               <p>{search || muscleFilter !== 'all' || equipFilter !== 'all' ? 'No exercises match your filters.' : 'No exercises found.'}</p>
             </div>
           ) : (
-            filtered.map(ex => <ExerciseRow key={ex.uuid} exercise={ex} />)
+            filtered.map(ex => <ExerciseRow key={ex.uuid} exercise={ex} onInfo={() => setDetailExercise(ex)} />)
           )}
         </div>
       </div>
 
-      <BottomSheet
-        open={showAddSheet}
-        onClose={() => setShowAddSheet(false)}
-        title="New Custom Exercise"
-      >
-        <AddExerciseForm
-          onSaved={() => setShowAddSheet(false)}
-          onCancel={() => setShowAddSheet(false)}
-        />
+      <BottomSheet open={showAddSheet} onClose={() => setShowAddSheet(false)} title="New Custom Exercise">
+        <AddExerciseForm onSaved={() => setShowAddSheet(false)} onCancel={() => setShowAddSheet(false)} />
       </BottomSheet>
+
+      <ExerciseDetailSheet
+        open={detailExercise !== null}
+        onClose={() => setDetailExercise(null)}
+        exercise={detailExercise}
+      />
     </>
   )
 }

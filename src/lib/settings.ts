@@ -8,12 +8,16 @@ export interface AppSettings {
   units: Unit
   defaultRestSeconds: number
   theme: ThemePreference
+  barWeight: number
+  plateWeightsKg: number[]
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   units: 'kg',
   defaultRestSeconds: 90,
   theme: 'dark',
+  barWeight: 20,
+  plateWeightsKg: [25, 20, 15, 10, 5, 2.5, 1.25],
 }
 
 export async function getSetting<K extends keyof AppSettings>(key: K): Promise<AppSettings[K]> {
@@ -33,5 +37,7 @@ export function useSettings(): AppSettings {
     units: (map.units as Unit | undefined) ?? DEFAULT_SETTINGS.units,
     defaultRestSeconds: (map.defaultRestSeconds as number | undefined) ?? DEFAULT_SETTINGS.defaultRestSeconds,
     theme: (map.theme as ThemePreference | undefined) ?? DEFAULT_SETTINGS.theme,
+    barWeight: (map.barWeight as number | undefined) ?? DEFAULT_SETTINGS.barWeight,
+    plateWeightsKg: (map.plateWeightsKg as number[] | undefined) ?? DEFAULT_SETTINGS.plateWeightsKg,
   }
 }

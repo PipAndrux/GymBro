@@ -26,6 +26,8 @@ export type Category = 'strength' | 'cardio'
 
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 
+export type SetType = 'normal' | 'warmup' | 'dropset' | 'failure'
+
 export interface Exercise {
   uuid: string
   name: string
@@ -70,6 +72,8 @@ export interface WorkoutSet {
   rpe?: number
   restSeconds?: number
   completedAt?: number
+  setType?: SetType
+  supersetGroup?: string
   updatedAt: number
   deletedAt: number | null
 }
@@ -110,7 +114,7 @@ export interface DailyGoal {
 
 export interface Setting {
   key: string
-  value: string | number | boolean
+  value: string | number | boolean | number[]
 }
 
 /** Per-user cloud-sync cursors (Phase 6). One row per signed-in Supabase user. */
