@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate } from 'react-router-dom'
-import { Download, Upload, Info, LogOut, ChevronRight, Plus, TrendingUp, ArrowUp, ArrowDown } from 'lucide-react'
+import { Download, Upload, Info, LogOut, ChevronRight, Plus, TrendingUp, ArrowUp, ArrowDown, Trophy, Flame, Zap, Award, Dumbbell, Star, Lock } from 'lucide-react'
 import { db, consolidateMeasurements, measurementUuidForType } from '../db'
 import type { Measurement } from '../types'
 import { useSettings, setSetting, type Unit, type ThemePreference } from '../lib/settings'
@@ -10,6 +10,7 @@ import { supabaseConfigured } from '../lib/supabase'
 import { MEASUREMENT_TYPE_DEFS } from '../lib/measurementTypes'
 import BottomSheet from '../components/BottomSheet'
 import SyncIndicator from '../components/SyncIndicator'
+import { ALL_BADGES, computeAchievementStats, getEarnedBadgeIds, type Badge } from '../lib/achievements'
 
 // ── Export/import helpers ──────────────────────────────────────────────────────
 
@@ -170,6 +171,12 @@ export default function ProfilePage() {
         )}
       </div>
 
+      {/* ── Achievements ─────────────────────────────────────── */}
+      <div style={{ padding: '0 16px', marginBottom: 24 }}>
+        <div className="section-title" style={{ padding: 0, marginBottom: 10 }}>Achievements</div>
+        <BadgesSection />
+      </div>
+
       {/* ── Measurements ─────────────────────────────────────── */}
       <div style={{ padding: '0 16px', marginBottom: 24 }}>
         <div className="section-title" style={{ padding: 0, marginBottom: 10 }}>Body Measurements</div>
@@ -326,6 +333,55 @@ export default function ProfilePage() {
           </button>
         </div>
       </BottomSheet>
+    </div>
+  )
+}
+
+// ── Badges ────────────────────────────────────────────────────────────────────
+
+const BADGE_ICON_MAP: Record<Badge['icon'], React.ComponentType<{ size?: number }>> = {
+  trophy: Trophy, flame: Flame, zap: Zap, award: Award, dumbbell: Dumbbell, star: Star,
+}
+
+const TIER_COLORS: Record<Badge['tier'], { bg: string; border: string; text: string }> = {
+  bronze: { bg: 'rgba(217 119 6 / 0.12)', border: 'rgba(217 119 6 / 0.35)', text: '#d97706' },
+  silver: { bg: 'rgba(148 163 184 / 0.12)', border: 'rgba(148 163 184 / 0.35)', text: '#94a3b8' },
+  gold:   { bg: 'rgba(234 179 8 / 0.12)', border: 'rgba(234 179 8 / 0.35)', text: '#eab308' },
+}
+
+function BadgesSection() {
+  const stats = useLiveQuery(() => computeAchievementStats(), [])
+  const earned = stats ? getEarnedBadgeIds(stats) : new Set<string>()
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+      {ALL_BADGES.map(badge => {
+        const isEarned = earned.has(badge.id)
+        const Icon = BADGE_ICON_MAP[badge.icon]
+        const colors = TIER_COLORS[badge.tier]
+        return (
+          <div
+            key={badge.id}
+            title={badge.description}
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              padding: '12px 8px', borderRadius: 'var(--radius-lg)', textAlign: 'center',
+              gap: 6,
+              background: isEarned ? colors.bg : 'rgb(var(--color-surface))',
+              border: `1px solid ${isEarned ? colors.border : 'rgb(var(--color-border))'}`,
+              opacity: isEarned ? 1 : 0.55,
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <div style={{ color: isEarned ? colors.text : 'rgb(var(--color-text-muted))' }}>
+              {isEarned ? <Icon size={22} /> : <Lock size={18} />}
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.2, color: isEarned ? 'rgb(var(--color-text))' : 'rgb(var(--color-text-muted))' }}>
+              {badge.title}
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }

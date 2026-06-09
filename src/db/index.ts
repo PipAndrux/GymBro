@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie'
-import type { Exercise, Routine, Workout, WorkoutSet, Food, FoodEntry, DailyGoal, Setting, Measurement, MeasurementEntry, SyncState, SavedMeal, Recipe, WaterEntry } from '../types'
+import type { Exercise, Routine, Workout, WorkoutSet, Food, FoodEntry, DailyGoal, Setting, Measurement, MeasurementEntry, SyncState, SavedMeal, Recipe, WaterEntry, ProgressPhoto } from '../types'
 import { EXERCISE_SEED } from '../data/exercises.seed'
 
 class FitTrackerDB extends Dexie {
@@ -17,6 +17,7 @@ class FitTrackerDB extends Dexie {
   savedMeals!: Table<SavedMeal, string>
   recipes!: Table<Recipe, string>
   waterEntries!: Table<WaterEntry, string>
+  progressPhotos!: Table<ProgressPhoto, string>
 
   constructor() {
     super('FitTrackerDB')
@@ -77,6 +78,25 @@ class FitTrackerDB extends Dexie {
       savedMeals: '&uuid, updatedAt, deletedAt',
       recipes: '&uuid, updatedAt, deletedAt',
       waterEntries: '&uuid, date, updatedAt, deletedAt',
+    })
+
+    // v5 — Phase 4: progress photos (local IndexedDB only, no Supabase upload)
+    this.version(5).stores({
+      exercises: '&uuid, name, primaryMuscle, equipment, category, isCustom, updatedAt, deletedAt',
+      routines: '&uuid, name, createdAt, updatedAt, deletedAt',
+      workouts: '&uuid, routineUuid, startedAt, endedAt, status, updatedAt, deletedAt',
+      sets: '&uuid, workoutUuid, exerciseUuid, completedAt, updatedAt, deletedAt',
+      foods: '&uuid, name, isCustom, updatedAt, deletedAt',
+      foodEntries: '&uuid, date, foodUuid, mealType, updatedAt, deletedAt',
+      dailyGoals: '&uuid, date, updatedAt, deletedAt',
+      settings: '&key',
+      measurements: '&uuid, type, sortOrder, updatedAt, deletedAt',
+      measurementEntries: '&uuid, measurementUuid, date, updatedAt, deletedAt',
+      syncState: '&id',
+      savedMeals: '&uuid, updatedAt, deletedAt',
+      recipes: '&uuid, updatedAt, deletedAt',
+      waterEntries: '&uuid, date, updatedAt, deletedAt',
+      progressPhotos: '&uuid, date, createdAt, updatedAt, deletedAt',
     })
 
     // Seed built-in exercises on first DB creation

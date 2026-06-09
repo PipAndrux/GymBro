@@ -20,6 +20,9 @@ import LandingPage from './pages/LandingPage'
 const ProgressPage = lazy(() => import('./pages/ProgressPage'))
 const ExerciseProgressPage = lazy(() => import('./pages/ExerciseProgressPage'))
 const MeasurementPage = lazy(() => import('./pages/MeasurementPage'))
+// Phase 4 pages — lazy-loaded
+const ProgressPhotosPage = lazy(() => import('./pages/ProgressPhotosPage'))
+const ReportsPage = lazy(() => import('./pages/ReportsPage'))
 // Social is online-only and pulls in its own components — load on demand.
 const SocialPage = lazy(() => import('./pages/SocialPage'))
 import { useSession } from './store/sessionStore'
@@ -104,6 +107,8 @@ export default function App() {
             <Route path="/history/:uuid" element={<HistoryDetailPage />} />
             <Route path="/summary/:uuid" element={<WorkoutSummaryPage />} />
             <Route path="/progress" element={<ProgressPage />} />
+            <Route path="/progress/photos" element={<ProgressPhotosPage />} />
+            <Route path="/progress/reports" element={<ReportsPage />} />
             <Route path="/progress/:exerciseUuid" element={<ExerciseProgressPage />} />
             <Route path="/measurements/:uuid" element={<MeasurementPage />} />
             <Route path="/food" element={<FoodPage />} />

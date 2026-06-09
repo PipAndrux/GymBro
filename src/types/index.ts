@@ -152,6 +152,17 @@ export interface WaterEntry {
   deletedAt: number | null
 }
 
+/** Progress photo stored locally in IndexedDB — never uploaded to Supabase Storage. */
+export interface ProgressPhoto {
+  uuid: string
+  date: string      // 'YYYY-MM-DD'
+  note?: string
+  dataUrl: string   // base64 JPEG, resized to ≤1000px before storing
+  createdAt: number
+  updatedAt: number
+  deletedAt: number | null
+}
+
 /** Per-user cloud-sync cursors (Phase 6). One row per signed-in Supabase user. */
 export interface SyncState {
   id: string                       // Supabase user id (auth.uid())

@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, TrendingUp, BarChart3 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, TrendingUp, BarChart3, Camera, FileBarChart2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { getWeeklyVolume, getExercisesWithData } from '../lib/prs'
 import { useSettings } from '../lib/settings'
@@ -36,6 +36,24 @@ export default function ProgressPage() {
       </div>
 
       <div style={{ padding: '12px 16px 0', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Quick access */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <button className="card nav-card" style={{ padding: '14px 16px', gap: 10 }} onClick={() => navigate('/progress/photos')}>
+            <Camera size={20} style={{ color: 'rgb(var(--color-accent))', flexShrink: 0 }} />
+            <div style={{ textAlign: 'left' }}>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>Photos</div>
+              <div style={{ fontSize: 11, color: 'rgb(var(--color-text-muted))', marginTop: 1 }}>Progress timeline</div>
+            </div>
+          </button>
+          <button className="card nav-card" style={{ padding: '14px 16px', gap: 10 }} onClick={() => navigate('/progress/reports')}>
+            <FileBarChart2 size={20} style={{ color: 'rgb(var(--color-accent))', flexShrink: 0 }} />
+            <div style={{ textAlign: 'left' }}>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>Reports</div>
+              <div style={{ fontSize: 11, color: 'rgb(var(--color-text-muted))', marginTop: 1 }}>Weekly & monthly</div>
+            </div>
+          </button>
+        </div>
+
         {/* Weekly volume */}
         <div>
           <div className="section-title" style={{ padding: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
