@@ -268,10 +268,6 @@ export default function LogFoodSheet({ open, onClose, date, mealType, mealLabel,
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {savedMeals.map(meal => {
-                      const totalKcal = meal.items.reduce((sum, item) => {
-                        // approximate inline — full lookup would need async
-                        return sum
-                      }, 0)
                       return (
                         <div key={meal.uuid} className="card" style={{ padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
                           <div style={{ flex: 1, minWidth: 0 }}>

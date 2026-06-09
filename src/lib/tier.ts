@@ -20,6 +20,7 @@ export const FEATURES = {
   measurements: 'free',
   history: 'free',
   dataExport: 'free',
+  social: 'free',
 } as const satisfies Record<string, Tier>
 
 export type FeatureKey = keyof typeof FEATURES

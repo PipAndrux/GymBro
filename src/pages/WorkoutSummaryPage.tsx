@@ -1,9 +1,10 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Trophy, Clock, Dumbbell, Layers, CheckCircle2, Share2, Home } from 'lucide-react'
 import { getWorkoutSummary } from '../lib/prs'
+import { maybeShareWorkout } from '../lib/social'
 import { formatDurationShort, formatVolume, formatDateLong } from '../lib/format'
 import { useSettings } from '../lib/settings'
 import { MUSCLE_COLORS } from '../lib/exerciseMeta'
@@ -20,6 +21,16 @@ export default function WorkoutSummaryPage() {
   useEffect(() => {
     if (prCount > 0) playFanfare()
   }, [prCount])
+
+  // Publish a feed summary once per workout (only if the user has a social
+  // profile — otherwise nothing leaves the device). Idempotent upsert.
+  const sharedRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (summary && summary.workout.uuid !== sharedRef.current) {
+      sharedRef.current = summary.workout.uuid
+      void maybeShareWorkout(summary)
+    }
+  }, [summary])
 
   async function handleShare() {
     if (!summary) return

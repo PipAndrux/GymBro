@@ -1,7 +1,7 @@
 import { useEffect, lazy, Suspense, useState } from 'react'
 import { Routes, Route, NavLink, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Dumbbell, ListOrdered, Apple, Settings } from 'lucide-react'
+import { Dumbbell, ListOrdered, Apple, Users, Settings } from 'lucide-react'
 import { useAuth } from './store/authStore'
 import WorkoutPage from './pages/WorkoutPage'
 import RoutinesPage from './pages/RoutinesPage'
@@ -20,6 +20,8 @@ import LandingPage from './pages/LandingPage'
 const ProgressPage = lazy(() => import('./pages/ProgressPage'))
 const ExerciseProgressPage = lazy(() => import('./pages/ExerciseProgressPage'))
 const MeasurementPage = lazy(() => import('./pages/MeasurementPage'))
+// Social is online-only and pulls in its own components — load on demand.
+const SocialPage = lazy(() => import('./pages/SocialPage'))
 import { useSession } from './store/sessionStore'
 import { useSettings } from './lib/settings'
 
@@ -27,6 +29,7 @@ const tabs = [
   { to: '/', label: 'Workout', Icon: Dumbbell },
   { to: '/routines', label: 'Routines', Icon: ListOrdered },
   { to: '/food', label: 'Food', Icon: Apple },
+  { to: '/social', label: 'Friends', Icon: Users },
   { to: '/settings', label: 'Settings', Icon: Settings },
 ]
 
@@ -104,6 +107,7 @@ export default function App() {
             <Route path="/progress/:exerciseUuid" element={<ExerciseProgressPage />} />
             <Route path="/measurements/:uuid" element={<MeasurementPage />} />
             <Route path="/food" element={<FoodPage />} />
+            <Route path="/social" element={<SocialPage />} />
             <Route path="/settings" element={<ProfilePage />} />
           </Routes>
           </Suspense>
