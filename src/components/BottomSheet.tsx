@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 
 interface BottomSheetProps {
   open: boolean
@@ -8,7 +8,26 @@ interface BottomSheetProps {
   title?: string
 }
 
+// Ref-counted body lock: keeps `html.sheet-open` set while ANY sheet is open, so
+// overlapping/nested sheets don't unlock the page prematurely.
+let openSheetCount = 0
+function setBodyLock(locked: boolean) {
+  if (locked) {
+    openSheetCount += 1
+    document.documentElement.classList.add('sheet-open')
+  } else {
+    openSheetCount = Math.max(0, openSheetCount - 1)
+    if (openSheetCount === 0) document.documentElement.classList.remove('sheet-open')
+  }
+}
+
 export default function BottomSheet({ open, onClose, children, title }: BottomSheetProps) {
+  useEffect(() => {
+    if (!open) return
+    setBodyLock(true)
+    return () => setBodyLock(false)
+  }, [open])
+
   return (
     <AnimatePresence>
       {open && (

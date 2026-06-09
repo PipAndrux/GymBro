@@ -216,9 +216,16 @@ body {
   border-top: 1px solid rgb(var(--color-border));
   padding: 20px 20px calc(20px + var(--safe-bottom));
   z-index: 101;
-  max-height: 90vh;
+  max-height: 90vh;             /* fallback for browsers without dvh */
+  max-height: 90dvh;            /* adapts to mobile Chrome's dynamic toolbar */
   overflow-y: auto;
+  overscroll-behavior: contain; /* keep scrolling inside the sheet — never the page behind */
   -webkit-overflow-scrolling: touch;
+}
+
+/* Freeze the page behind an open bottom sheet so touch-scrolling stays in the sheet. */
+html.sheet-open .page-content {
+  overflow: hidden;
 }
 
 .sheet-handle {
