@@ -117,6 +117,41 @@ export interface Setting {
   value: string | number | boolean | number[]
 }
 
+export interface SavedMealItem {
+  foodUuid: string
+  grams: number
+}
+
+export interface SavedMeal {
+  uuid: string
+  name: string
+  items: SavedMealItem[]
+  updatedAt: number
+  deletedAt: number | null
+}
+
+export interface RecipeIngredient {
+  foodUuid: string
+  grams: number
+}
+
+export interface Recipe {
+  uuid: string
+  name: string
+  servings: number
+  ingredients: RecipeIngredient[]
+  updatedAt: number
+  deletedAt: number | null
+}
+
+export interface WaterEntry {
+  uuid: string
+  date: string
+  ml: number
+  updatedAt: number
+  deletedAt: number | null
+}
+
 /** Per-user cloud-sync cursors (Phase 6). One row per signed-in Supabase user. */
 export interface SyncState {
   id: string                       // Supabase user id (auth.uid())
