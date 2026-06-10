@@ -107,15 +107,11 @@ export default function WorkoutPage() {
 
   return (
     <div className="page-content">
-      {/* Greeting — single line: greeting left, first name right */}
-      <div style={{ padding: '20px 16px 4px', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, letterSpacing: -0.6, whiteSpace: 'nowrap', flexShrink: 0 }}>{greeting}</h1>
-        <span style={{
-          fontSize: 17, fontWeight: 700, color: 'rgb(var(--color-accent))',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
-        }}>
-          {firstName}
-        </span>
+      {/* Greeting — single line: "Good morning, Andrea" */}
+      <div style={{ padding: '20px 16px 4px' }}>
+        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, letterSpacing: -0.6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {greeting}, <span style={{ color: 'rgb(var(--color-accent))' }}>{firstName}</span>
+        </h1>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '12px 16px 0' }}>
