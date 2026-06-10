@@ -1,13 +1,14 @@
 import { useEffect, lazy, Suspense, useState } from 'react'
 import { Routes, Route, NavLink, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Dumbbell, ListOrdered, Apple, Users, Settings } from 'lucide-react'
+import { Dumbbell, Apple, Users, User } from 'lucide-react'
 import { useAuth } from './store/authStore'
 import OnboardingSheet, { isSetupDone, markSetupDone } from './components/OnboardingSheet'
 import WorkoutPage from './pages/WorkoutPage'
 import RoutinesPage from './pages/RoutinesPage'
 import FoodPage from './pages/FoodPage'
 import ProfilePage from './pages/ProfilePage'
+import SettingsPage from './pages/SettingsPage'
 import ExercisesPage from './pages/ExercisesPage'
 import SessionPage from './pages/SessionPage'
 import RoutineEditPage from './pages/RoutineEditPage'
@@ -31,10 +32,9 @@ import { useSettings, ACCENT_PALETTES } from './lib/settings'
 
 const tabs = [
   { to: '/', label: 'Workout', Icon: Dumbbell },
-  { to: '/routines', label: 'Routines', Icon: ListOrdered },
   { to: '/food', label: 'Food', Icon: Apple },
   { to: '/social', label: 'Friends', Icon: Users },
-  { to: '/settings', label: 'Settings', Icon: Settings },
+  { to: '/profile', label: 'Profile', Icon: User },
 ]
 
 const pageVariants = {
@@ -131,7 +131,8 @@ export default function App() {
             <Route path="/measurements/:uuid" element={<MeasurementPage />} />
             <Route path="/food" element={<FoodPage />} />
             <Route path="/social" element={<SocialPage />} />
-            <Route path="/settings" element={<ProfilePage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Routes>
           </Suspense>
         </motion.div>

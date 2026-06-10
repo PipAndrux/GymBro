@@ -1,12 +1,12 @@
 import { useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Play, BookOpen, History, Flame, ChevronRight, Check, Apple, Trophy, TrendingUp } from 'lucide-react'
+import { Plus, Play, BookOpen, History, Flame, ChevronRight, Trophy, TrendingUp, ListOrdered } from 'lucide-react'
 import { db } from '../db'
 import { useSession } from '../store/sessionStore'
 import { useSettings } from '../lib/settings'
+import { useAuth } from '../store/authStore'
 import { macrosForGrams, todayStr, DEFAULT_GOALS } from '../lib/foodCalc'
-import { formatDurationShort, formatVolume, formatDateLong } from '../lib/format'
 import { getRecentPRs } from '../lib/prs'
 import type { Food } from '../types'
 
@@ -14,25 +14,28 @@ function localDateStr(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
-const DAY_LABELS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
-
-const PLACEHOLDER_WEEK = DAY_LABELS.map(dayLabel => ({
-  date: '', hasWorkout: false, dayLabel, isToday: false,
-}))
-
 export default function WorkoutPage() {
   const navigate = useNavigate()
   const hydrated = useSession(s => s.hydrated)
   const workout = useSession(s => s.workout)
-  const exercises = useSession(s => s.exercises)
   const startWorkout = useSession(s => s.startWorkout)
   const { units } = useSettings()
+  const { user } = useAuth()
 
   // Recent personal records — celebratory card (live-updates as sets are logged).
   const recentPRs = useLiveQuery(() => getRecentPRs(21, 2), [], [])
 
+  // Greeting changes by hour: morning 5–11, afternoon 12–17, evening 18–4.
   const hour = new Date().getHours()
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+  const greeting = hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 18 ? 'Good afternoon' : 'Good evening'
+
+  // First name from Supabase profile/auth, or "Guest" when logged out.
+  const meta = user?.user_metadata as { full_name?: string } | undefined
+  const fullName = meta?.full_name?.trim()
+  const firstName = !user
+    ? 'Guest'
+    : (fullName ? fullName.split(/\s+/)[0] : (user.email?.split('@')[0] || 'Guest'))
+
   const today = todayStr()
 
   // ── Today's food data ──────────────────────────────────────
@@ -74,8 +77,8 @@ export default function WorkoutPage() {
   const carbGoal = todayFood?.goal?.carbGoal     ?? DEFAULT_GOALS.carbGoal
   const fatGoal  = todayFood?.goal?.fatGoal      ?? DEFAULT_GOALS.fatGoal
 
-  // ── Workout streak + week activity ─────────────────────────
-  const workoutActivity = useLiveQuery(async () => {
+  // ── Workout streak (consecutive days with a finished workout) ──
+  const streak = useLiveQuery(async () => {
     const workouts = await db.workouts
       .filter(w => w.status === 'finished' && w.deletedAt === null)
       .toArray()
@@ -84,63 +87,51 @@ export default function WorkoutPage() {
     const now = new Date()
     const todayD = localDateStr(now)
 
-    // Streak: count consecutive days backward; today counts if has workout
-    let streak = 0
+    let s = 0
     const startFrom = workoutDateSet.has(todayD) ? 0 : 1
     for (let i = startFrom; i < 365; i++) {
       const d = new Date(now)
       d.setDate(d.getDate() - i)
-      if (workoutDateSet.has(localDateStr(d))) streak++
+      if (workoutDateSet.has(localDateStr(d))) s++
       else break
     }
-
-    // This week Mon–Sun
-    const dayOfWeek = now.getDay() // 0=Sun
-    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
-    const week = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(now)
-      d.setDate(now.getDate() + mondayOffset + i)
-      const ds = localDateStr(d)
-      return { date: ds, hasWorkout: workoutDateSet.has(ds), dayLabel: DAY_LABELS[i], isToday: ds === todayD }
-    })
-
-    return { streak, week }
-  }, [])
-
-  // ── Last workout ───────────────────────────────────────────
-  const lastWorkout = useLiveQuery(async () => {
-    const workouts = await db.workouts
-      .filter(w => w.status === 'finished' && w.deletedAt === null)
-      .toArray()
-    if (!workouts.length) return null
-    workouts.sort((a, b) => b.startedAt - a.startedAt)
-    const w = workouts[0]
-    const sets = await db.sets
-      .where('workoutUuid').equals(w.uuid)
-      .filter(s => s.deletedAt === null)
-      .toArray()
-    const volume = sets.reduce((sum, s) => sum + (s.weight || 0) * (s.reps || 0), 0)
-    return { workout: w, volume, setCount: sets.length, duration: (w.endedAt ?? w.startedAt) - w.startedAt }
-  }, [])
+    return s
+  }, [], 0)
 
   async function handleStart() {
     await startWorkout([])
     navigate('/session')
   }
 
+  const workoutInProgress = hydrated && workout
+
   return (
     <div className="page-content">
-      {/* Greeting */}
-      <div style={{ padding: '20px 16px 4px' }}>
-        <p style={{ margin: 0, fontSize: 14, color: 'rgb(var(--color-text-muted))' }}>{greeting}</p>
-        <h1 style={{ margin: '2px 0 0', fontSize: 30, fontWeight: 800, letterSpacing: -0.8 }}>GymBro</h1>
+      {/* Greeting — single line: greeting left, first name right */}
+      <div style={{ padding: '20px 16px 4px', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
+        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, letterSpacing: -0.6, whiteSpace: 'nowrap', flexShrink: 0 }}>{greeting}</h1>
+        <span style={{
+          fontSize: 17, fontWeight: 700, color: 'rgb(var(--color-accent))',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
+        }}>
+          {firstName}
+        </span>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '12px 16px 0' }}>
 
-        {/* ─── Calories card ───────────────────────────────── */}
+        {/* ─── Calories card (with compact streak top-right) ─── */}
         <div className="card" style={{ padding: 16 }}>
-          <div style={sectionLabel}>Today's Nutrition</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
+            <div style={{ ...sectionLabel, marginBottom: 0 }}>Today's Nutrition</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+              <Flame size={15} strokeWidth={2.2} style={{ color: streak > 0 ? '#f97316' : 'rgb(var(--color-border))' }} />
+              <span style={{ fontSize: 15, fontWeight: 800, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{streak}</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: 'rgb(var(--color-text-muted))', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                Day Streak
+              </span>
+            </div>
+          </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 10 }}>
             <span style={{ fontSize: 40, fontWeight: 800, letterSpacing: -1.5, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
               {totals.calories.toLocaleString()}
@@ -157,59 +148,22 @@ export default function WorkoutPage() {
           </div>
         </div>
 
-        {/* ─── Streak + week ───────────────────────────────── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: 12 }}>
-          {/* Streak */}
-          <div className="card" style={{ padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-            <Flame
-              size={26}
-              strokeWidth={2}
-              style={{ color: (workoutActivity?.streak ?? 0) > 0 ? '#f97316' : 'rgb(var(--color-border))' }}
-            />
-            <span style={{ fontSize: 32, fontWeight: 800, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-              {workoutActivity?.streak ?? 0}
-            </span>
-            <span style={{ fontSize: 10, fontWeight: 700, color: 'rgb(var(--color-text-muted))', letterSpacing: '0.06em', textTransform: 'uppercase', textAlign: 'center' }}>
-              day streak
-            </span>
-          </div>
-
-          {/* Week dots */}
-          <div className="card" style={{ padding: '14px 12px' }}>
-            <div style={sectionLabel}>This Week</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 3 }}>
-              {(workoutActivity?.week ?? PLACEHOLDER_WEEK).map((day, i) => (
-                <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
-                  <div style={{
-                    width: 30,
-                    height: 30,
-                    borderRadius: 8,
-                    background: day.hasWorkout
-                      ? 'rgb(var(--color-accent))'
-                      : day.isToday
-                        ? 'rgba(34 197 94 / 0.12)'
-                        : 'rgb(var(--color-surface-2))',
-                    border: day.isToday && !day.hasWorkout
-                      ? '1.5px solid rgba(34 197 94 / 0.5)'
-                      : '1.5px solid transparent',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                    {day.hasWorkout && <Check size={14} color="#fff" strokeWidth={2.5} />}
-                  </div>
-                  <span style={{
-                    fontSize: 9,
-                    fontWeight: 700,
-                    letterSpacing: '0.04em',
-                    color: day.isToday ? 'rgb(var(--color-accent))' : 'rgb(var(--color-text-muted))',
-                  }}>
-                    {day.dayLabel}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+        {/* ─── Start/Resume + Routines (side by side) ───────── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <button
+            className="btn btn-primary"
+            style={{ padding: '16px 12px', fontSize: 15, borderRadius: 'var(--radius-lg)', gap: 8 }}
+            onClick={workoutInProgress ? () => navigate('/session') : handleStart}
+          >
+            {workoutInProgress ? <><Play size={18} /> Resume Workout</> : <><Plus size={18} /> Start Workout</>}
+          </button>
+          <button
+            className="btn btn-secondary"
+            style={{ padding: '16px 12px', fontSize: 15, borderRadius: 'var(--radius-lg)', gap: 8 }}
+            onClick={() => navigate('/routines')}
+          >
+            <ListOrdered size={18} /> Routines
+          </button>
         </div>
 
         {/* ─── Recent PR celebration ───────────────────────── */}
@@ -235,60 +189,6 @@ export default function WorkoutPage() {
               </div>
               <ChevronRight size={18} style={{ color: 'rgb(var(--color-text-muted))', flexShrink: 0 }} />
             </div>
-          </button>
-        )}
-
-        {/* ─── Quick actions ───────────────────────────────── */}
-        {hydrated && workout ? (
-          <button
-            className="btn btn-primary"
-            style={{ width: '100%', padding: '16px', fontSize: 17, borderRadius: 'var(--radius-lg)', flexDirection: 'column', gap: 3 }}
-            onClick={() => navigate('/session')}
-          >
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Play size={20} /> Resume Workout
-            </span>
-            <span style={{ fontSize: 12, fontWeight: 500, opacity: 0.85 }}>
-              {exercises.length} exercise{exercises.length !== 1 ? 's' : ''} · in progress
-            </span>
-          </button>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 10 }}>
-            <button
-              className="btn btn-primary"
-              style={{ padding: '16px', fontSize: 16, borderRadius: 'var(--radius-lg)', justifyContent: 'flex-start', gap: 10 }}
-              onClick={handleStart}
-            >
-              <Plus size={20} /> Start Workout
-            </button>
-            <button
-              className="btn btn-secondary"
-              style={{ padding: '16px 10px', fontSize: 14, borderRadius: 'var(--radius-lg)', flexDirection: 'column', gap: 4 }}
-              onClick={() => navigate('/food')}
-            >
-              <Apple size={18} style={{ color: 'rgb(var(--color-accent))' }} />
-              Log Food
-            </button>
-          </div>
-        )}
-
-        {/* ─── Last workout card ───────────────────────────── */}
-        {lastWorkout && (
-          <button
-            className="card nav-card"
-            style={{ padding: '14px 16px' }}
-            onClick={() => navigate('/history')}
-          >
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={sectionLabel}>Last Workout</div>
-              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 3 }}>{lastWorkout.workout.name}</div>
-              <div style={{ fontSize: 13, color: 'rgb(var(--color-text-muted))' }}>
-                {formatDateLong(lastWorkout.workout.startedAt)}
-                {' · '}{formatDurationShort(lastWorkout.duration)}
-                {' · '}{formatVolume(lastWorkout.volume, units)}
-              </div>
-            </div>
-            <ChevronRight size={18} style={{ color: 'rgb(var(--color-text-muted))', flexShrink: 0 }} />
           </button>
         )}
 
