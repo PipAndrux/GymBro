@@ -10,6 +10,8 @@ import {
 interface Props {
   open: boolean
   onClose: () => void
+  /** Return to the friends list panel (back arrow), as opposed to fully closing. */
+  onBack?: () => void
   profile: SocialProfile
   onChanged: () => void
 }
@@ -20,7 +22,7 @@ const PRIVACY_OPTS: { value: WorkoutPrivacy; label: string; desc: string }[] = [
   { value: 'private', label: 'Private', desc: 'No one — nothing appears in anyone’s feed.' },
 ]
 
-export default function FriendsSheet({ open, onClose, profile, onChanged }: Props) {
+export default function FriendsSheet({ open, onClose, onBack, profile, onChanged }: Props) {
   const [friends, setFriends] = useState<Friend[]>([])
   const [code, setCode] = useState('')
   const [query, setQuery] = useState('')
@@ -108,7 +110,7 @@ export default function FriendsSheet({ open, onClose, profile, onChanged }: Prop
   }
 
   return (
-    <BottomSheet open={open} onClose={onClose} title="Friends">
+    <BottomSheet open={open} onClose={onClose} onBack={onBack} title="Add friend">
       {/* Your code */}
       <div style={{ ...box, marginBottom: 18 }}>
         <div style={sectionLabel}>Your friend code</div>

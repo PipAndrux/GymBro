@@ -1,13 +1,13 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Users, Trophy, Rss, Flame, Dumbbell, User, UserPlus, Check, X } from 'lucide-react'
+import { Users, Trophy, Rss, Flame, Dumbbell, User, UserPlus, Check, X, ChevronRight } from 'lucide-react'
 import { useAuth } from '../store/authStore'
 import { supabaseConfigured } from '../lib/supabase'
 import { useTier } from '../lib/tier'
 import { useSettings } from '../lib/settings'
 import {
   fetchMyProfile, getFeed, getLeaderboard, createProfile, normalizeUsername, toggleReaction,
-  getPendingRequests, acceptRequest, declineRequest, getFriends,
+  getPendingRequests, acceptRequest, declineRequest, getFriends, backfillShareDetails,
   type SocialProfile, type FeedItem, type LeaderboardRow, type FriendRequest, type Friend,
 } from '../lib/social'
 import { formatVolume } from '../lib/format'
@@ -72,7 +72,19 @@ export default function SocialPage() {
   }, [user])
 
   useEffect(() => { void loadProfile() }, [loadProfile])
-  useEffect(() => { if (profile) { void loadSocial(); void loadRequests(); void loadFriends() } }, [profile, loadSocial, loadRequests, loadFriends])
+  useEffect(() => {
+    if (profile) {
+      void loadSocial(); void loadRequests(); void loadFriends()
+      // Enrich already-shared workouts with set-by-set detail (one-off, idempotent)
+      // so friends can copy/compare history shared before this release.
+      void backfillShareDetails()
+    }
+  }, [profile, loadSocial, loadRequests, loadFriends])
+
+  function openFriend(id: string) {
+    setPanelOpen(false)
+    navigate(`/friend/${id}`)
+  }
 
   async function handleReact(item: FeedItem) {
     const next = !item.reactedByMe
@@ -158,16 +170,17 @@ export default function SocialPage() {
               body="Add friends to see their workouts here. Share your friend code from Manage."
             />
           ) : (
-            feed.map(item => <FeedCard key={item.uuid} item={item} units={units} onReact={() => void handleReact(item)} />)
+            feed.map(item => <FeedCard key={item.uuid} item={item} units={units} onReact={() => void handleReact(item)} onOpenProfile={openFriend} />)
           )
         ) : (
-          <Leaderboard rows={board} metric={metric} onMetric={setMetric} units={units} loading={loading} />
+          <Leaderboard rows={board} metric={metric} onMetric={setMetric} units={units} loading={loading} onOpen={openFriend} />
         )}
       </div>
 
       <FriendsSheet
         open={friendsOpen}
         onClose={() => setFriendsOpen(false)}
+        onBack={() => { setFriendsOpen(false); setPanelOpen(true) }}
         profile={profile}
         onChanged={() => { void loadProfile(); void loadSocial(); void loadFriends() }}
       />
@@ -176,17 +189,17 @@ export default function SocialPage() {
       <BottomSheet
         open={panelOpen}
         onClose={() => setPanelOpen(false)}
-        title="Friends"
         style={{ minHeight: '85vh', display: 'flex', flexDirection: 'column' }}
       >
-        {/* Add friend button */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        {/* Header: title + add-friend on one row (keeps the top tight) */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 14 }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Friends</h2>
           <button
             className="btn btn-secondary"
-            style={{ gap: 8, fontSize: 14 }}
+            style={{ gap: 6, fontSize: 13, padding: '8px 12px' }}
             onClick={() => { setPanelOpen(false); setFriendsOpen(true) }}
           >
-            <UserPlus size={18} /> Add friend
+            <UserPlus size={16} /> Add
           </button>
         </div>
 
@@ -248,13 +261,23 @@ export default function SocialPage() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {friends.map((f: Friend) => (
-                  <div key={f.friendshipId} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderTop: '1px solid rgb(var(--color-border))' }}>
+                  <button
+                    key={f.friendshipId}
+                    onClick={() => openFriend(f.profile.id)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', width: '100%',
+                      borderTop: '1px solid rgb(var(--color-border))', borderLeft: 'none', borderRight: 'none', borderBottom: 'none',
+                      background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', font: 'inherit',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                  >
                     <Avatar name={f.profile.displayName} color={f.profile.avatarColor} size={40} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 600, fontSize: 15 }}>{f.profile.displayName}</div>
                       <div style={{ fontSize: 13, color: 'rgb(var(--color-text-muted))' }}>@{f.profile.username}</div>
                     </div>
-                  </div>
+                    <ChevronRight size={18} style={{ color: 'rgb(var(--color-text-muted))', flexShrink: 0 }} />
+                  </button>
                 ))}
               </div>
             )}
@@ -267,8 +290,9 @@ export default function SocialPage() {
 
 // ── Leaderboard ─────────────────────────────────────────────────────────────────
 
-function Leaderboard({ rows, metric, onMetric, units, loading }: {
+function Leaderboard({ rows, metric, onMetric, units, loading, onOpen }: {
   rows: LeaderboardRow[]; metric: Metric; onMetric: (m: Metric) => void; units: string; loading: boolean
+  onOpen: (id: string) => void
 }) {
   const sorted = [...rows].sort((a, b) => valueFor(b, metric) - valueFor(a, metric))
   const metrics: { value: Metric; label: string; icon: React.ReactNode }[] = [
@@ -293,10 +317,16 @@ function Leaderboard({ rows, metric, onMetric, units, loading }: {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 2 }}>
           {sorted.map((r, i) => (
-            <div key={r.profile.id} className="card" style={{
-              padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12,
-              border: r.isMe ? '1px solid rgba(34 197 94 / 0.5)' : '1px solid rgb(var(--color-border))',
-            }}>
+            <div
+              key={r.profile.id}
+              className="card"
+              onClick={r.isMe ? undefined : () => onOpen(r.profile.id)}
+              style={{
+                padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12,
+                border: r.isMe ? '1px solid rgba(34 197 94 / 0.5)' : '1px solid rgb(var(--color-border))',
+                cursor: r.isMe ? 'default' : 'pointer',
+              }}
+            >
               <span style={{ fontSize: 16, fontWeight: 800, width: 22, textAlign: 'center', color: i === 0 ? 'rgb(var(--color-accent-amber))' : 'rgb(var(--color-text-muted))' }}>
                 {i + 1}
               </span>

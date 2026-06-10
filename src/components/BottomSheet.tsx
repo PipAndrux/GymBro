@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
+import { ChevronLeft } from 'lucide-react'
 import { useEffect, type ReactNode } from 'react'
 
 interface BottomSheetProps {
@@ -6,6 +7,8 @@ interface BottomSheetProps {
   onClose: () => void
   children: ReactNode
   title?: string
+  /** When provided, a back arrow is shown left of the title (e.g. to return to a parent sheet). */
+  onBack?: () => void
   style?: React.CSSProperties
 }
 
@@ -22,7 +25,7 @@ function setBodyLock(locked: boolean) {
   }
 }
 
-export default function BottomSheet({ open, onClose, children, title, style }: BottomSheetProps) {
+export default function BottomSheet({ open, onClose, children, title, onBack, style }: BottomSheetProps) {
   useEffect(() => {
     if (!open) return
     setBodyLock(true)
@@ -50,8 +53,15 @@ export default function BottomSheet({ open, onClose, children, title, style }: B
             style={style}
           >
             <div className="sheet-handle" />
-            {title && (
-              <h2 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 700 }}>{title}</h2>
+            {(title || onBack) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '0 0 16px' }}>
+                {onBack && (
+                  <button className="icon-btn" onClick={onBack} aria-label="back" style={{ marginLeft: -6 }}>
+                    <ChevronLeft size={22} />
+                  </button>
+                )}
+                {title && <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{title}</h2>}
+              </div>
             )}
             {children}
           </motion.div>

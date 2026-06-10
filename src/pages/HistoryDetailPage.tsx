@@ -1,11 +1,14 @@
+import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Clock, Dumbbell, LineChart } from 'lucide-react'
+import { ChevronLeft, Clock, Dumbbell, LineChart, Globe, Users, Lock } from 'lucide-react'
 import { db } from '../db'
-import type { Exercise, WorkoutSet, Workout } from '../types'
+import type { Exercise, WorkoutSet, Workout, WorkoutPrivacy } from '../types'
 import { MUSCLE_COLORS } from '../lib/exerciseMeta'
 import { formatDateLong, formatTime, formatDurationShort, formatVolume } from '../lib/format'
 import { useSettings } from '../lib/settings'
+import { supabaseConfigured } from '../lib/supabase'
+import { setWorkoutSharePrivacy, getCachedProfile } from '../lib/social'
 
 interface Group {
   exercise: Exercise | undefined
@@ -23,6 +26,23 @@ export default function HistoryDetailPage() {
   const navigate = useNavigate()
   const { uuid } = useParams<{ uuid: string }>()
   const { units } = useSettings()
+
+  // Per-workout share privacy (Phase 3 Task 4). Default comes from the social
+  // profile; an explicit per-workout choice overrides it.
+  const [hasProfile, setHasProfile] = useState(false)
+  const [defaultPrivacy, setDefaultPrivacy] = useState<WorkoutPrivacy>('friends')
+  useEffect(() => {
+    if (!supabaseConfigured) return
+    void getCachedProfile().then(p => {
+      if (p) { setHasProfile(true); setDefaultPrivacy(p.workoutPrivacy) }
+    })
+  }, [])
+
+  async function changePrivacy(p: WorkoutPrivacy) {
+    if (!uuid) return
+    await db.workouts.update(uuid, { privacy: p, updatedAt: Date.now() })
+    void setWorkoutSharePrivacy(uuid, p)
+  }
 
   const detail = useLiveQuery(async (): Promise<Detail | null> => {
     if (!uuid) return null
@@ -103,6 +123,14 @@ export default function HistoryDetailPage() {
             </div>
           </div>
 
+          {/* Privacy (Phase 3 Task 4) — who can see this workout in the friends feed */}
+          {supabaseConfigured && hasProfile && (
+            <PrivacyControl
+              value={detail.workout.privacy ?? defaultPrivacy}
+              onChange={changePrivacy}
+            />
+          )}
+
           {/* Exercises */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
             {detail.groups.map(({ exercise, sets }, gi) => {
@@ -156,6 +184,39 @@ export default function HistoryDetailPage() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+const PRIVACY_OPTS: { value: WorkoutPrivacy; label: string; Icon: typeof Globe; desc: string }[] = [
+  { value: 'public', label: 'Public', Icon: Globe, desc: 'Any GymBro user can see this workout.' },
+  { value: 'friends', label: 'Friends', Icon: Users, desc: 'Only your friends can see this workout.' },
+  { value: 'private', label: 'Private', Icon: Lock, desc: 'Only you — it won’t appear in any feed.' },
+]
+
+function PrivacyControl({ value, onChange }: { value: WorkoutPrivacy; onChange: (p: WorkoutPrivacy) => void }) {
+  const desc = PRIVACY_OPTS.find(o => o.value === value)?.desc
+  return (
+    <div className="card" style={{ padding: 14, marginTop: 12 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgb(var(--color-text-muted))', marginBottom: 8 }}>
+        Who can see this workout
+      </div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        {PRIVACY_OPTS.map(o => {
+          const active = value === o.value
+          return (
+            <button
+              key={o.value}
+              className={`btn ${active ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ flex: 1, padding: '9px 0', fontSize: 13, gap: 6 }}
+              onClick={() => onChange(o.value)}
+            >
+              <o.Icon size={15} /> {o.label}
+            </button>
+          )
+        })}
+      </div>
+      <p style={{ margin: '8px 0 0', fontSize: 12, color: 'rgb(var(--color-text-muted))', lineHeight: 1.5 }}>{desc}</p>
     </div>
   )
 }

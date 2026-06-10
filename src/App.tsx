@@ -27,6 +27,8 @@ const ProgressPhotosPage = lazy(() => import('./pages/ProgressPhotosPage'))
 const ReportsPage = lazy(() => import('./pages/ReportsPage'))
 // Social is online-only and pulls in its own components — load on demand.
 const SocialPage = lazy(() => import('./pages/SocialPage'))
+const FriendProfilePage = lazy(() => import('./pages/FriendProfilePage'))
+const FriendComparePage = lazy(() => import('./pages/FriendComparePage'))
 import { useSession } from './store/sessionStore'
 import { useSettings, ACCENT_PALETTES } from './lib/settings'
 
@@ -131,6 +133,8 @@ export default function App() {
             <Route path="/measurements/:uuid" element={<MeasurementPage />} />
             <Route path="/food" element={<FoodPage />} />
             <Route path="/social" element={<SocialPage />} />
+            <Route path="/friend/:id" element={<FriendProfilePage />} />
+            <Route path="/friend/:id/compare" element={<FriendComparePage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>

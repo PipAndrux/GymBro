@@ -50,6 +50,11 @@ export interface Routine {
   deletedAt: number | null
 }
 
+/** Who may see a workout once it is shared to the social feed. Mirrors
+ *  `WorkoutPrivacy` in lib/social — kept inline here to avoid a lib→types
+ *  import cycle. Stored per-workout; `undefined` falls back to the profile default. */
+export type WorkoutPrivacy = 'public' | 'friends' | 'private'
+
 export interface Workout {
   uuid: string
   name: string
@@ -58,6 +63,8 @@ export interface Workout {
   startedAt: number
   endedAt?: number
   status: 'active' | 'finished'
+  /** Per-workout share privacy (Phase 3). Unset → use the profile's default. */
+  privacy?: WorkoutPrivacy
   updatedAt: number
   deletedAt: number | null
 }

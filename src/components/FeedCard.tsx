@@ -22,16 +22,26 @@ interface Props {
   item: FeedItem
   units: string
   onReact: () => void
+  /** Open the author's read-only profile. */
+  onOpenProfile?: (userId: string) => void
 }
 
-export default function FeedCard({ item, units, onReact }: Props) {
+export default function FeedCard({ item, units, onReact, onOpenProfile }: Props) {
   const [open, setOpen] = useState(false)
   const hasDetail = item.topExercises.length > 0 || item.prs.length > 0
 
   return (
     <div className="card" style={{ padding: 14 }}>
       {/* Author */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+      <button
+        onClick={onOpenProfile ? () => onOpenProfile(item.userId) : undefined}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, width: '100%',
+          background: 'transparent', border: 'none', padding: 0, textAlign: 'left',
+          cursor: onOpenProfile ? 'pointer' : 'default', color: 'inherit', font: 'inherit',
+          WebkitTapHighlightColor: 'transparent',
+        }}
+      >
         <Avatar name={item.author.displayName} color={item.author.avatarColor} size={40} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -50,7 +60,7 @@ export default function FeedCard({ item, units, onReact }: Props) {
             <Trophy size={12} /> {item.prCount}
           </span>
         )}
-      </div>
+      </button>
 
       {/* Workout name */}
       <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 10 }}>{item.name}</div>

@@ -42,7 +42,7 @@ export const SYNC_TABLES: SyncTableConfig[] = [
   {
     name: 'workouts',
     table: () => t(db.workouts),
-    columns: ['uuid', 'name', 'type', 'routineUuid', 'startedAt', 'endedAt', 'status', 'updatedAt', 'deletedAt'],
+    columns: ['uuid', 'name', 'type', 'routineUuid', 'startedAt', 'endedAt', 'status', 'privacy', 'updatedAt', 'deletedAt'],
   },
   {
     name: 'sets',

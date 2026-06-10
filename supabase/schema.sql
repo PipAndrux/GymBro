@@ -52,10 +52,13 @@ create table if not exists public.workouts (
   "startedAt" double precision,
   "endedAt" double precision,
   status text,
+  privacy text,                       -- Phase 3: per-workout share privacy (owner-only column)
   "updatedAt" double precision,
   "deletedAt" double precision,
   server_updated_at timestamptz not null default now()
 );
+-- Existing deployments: add the per-workout privacy column if the table predates Phase 3.
+alter table public.workouts add column if not exists privacy text;
 
 create table if not exists public.sets (
   uuid text primary key,
@@ -196,6 +199,57 @@ end $$;
 --  • are_friends() / can_view_share() are SECURITY DEFINER so they read the friend
 --    graph without recursively triggering RLS (the standard Supabase pattern).
 -- ════════════════════════════════════════════════════════════════════════════
+--
+-- ┌──────────────────────────────────────────────────────────────────────────┐
+-- │ PHASE 3 — RLS AUDIT (friend profiles, copy-workout, compare, privacy)     │
+-- ├──────────────────────────────────────────────────────────────────────────┤
+-- │ This phase adds NO new tables — only two columns — so every cross-user    │
+-- │ read still flows through the single, audited workout_shares.privacy gate. │
+-- │                                                                            │
+-- │ Columns added this phase:                                                  │
+-- │   • workouts.privacy        — owner-only (personal-sync table; RLS         │
+-- │                               own_rows: auth.uid() = "supabaseUserId").    │
+-- │                               This is a LOCAL preference only; it is NEVER │
+-- │                               the cross-user gate.                         │
+-- │   • workout_shares.exercises— denormalized set-by-set detail. Covered by   │
+-- │                               the existing shares_select policy, so it is  │
+-- │                               exposed ONLY at the row's privacy level.     │
+-- │                               Friends-only/private detail never leaks.     │
+-- │                                                                            │
+-- │ Complete social RLS policy list (all enforced server-side):                │
+-- │   profiles                                                                 │
+-- │     • profiles_select  SELECT  using(true)            (usernames are       │
+-- │                                                        discoverable; no    │
+-- │                                                        private data here)  │
+-- │     • profiles_modify  ALL     using/check auth.uid()=id   (owner only)    │
+-- │   friendships                                                              │
+-- │     • friendships_select SELECT using member(user_a|user_b)                │
+-- │     • friendships_insert INSERT check requester AND member                 │
+-- │     • friendships_delete DELETE using member                               │
+-- │   workout_shares                                                           │
+-- │     • shares_select SELECT using owner OR (not-deleted AND (public OR      │
+-- │                            (friends AND are_friends(uid, userId))))        │
+-- │                            → covers the new `exercises` column.            │
+-- │     • shares_modify ALL    using/check "userId"=auth.uid()  (owner only)   │
+-- │   reactions                                                                │
+-- │     • reactions_select SELECT using can_view_share("shareUuid")            │
+-- │     • reactions_insert INSERT check own AND can_view_share                 │
+-- │     • reactions_delete DELETE using own                                    │
+-- │   helpers (SECURITY DEFINER, search_path=public): are_friends,             │
+-- │           can_view_share, add_friend, add_friend_by_code                   │
+-- │                                                                            │
+-- │ Verification — a non-friend reading another user's friends-only/private    │
+-- │ workout (and now its exercise detail) returns ZERO rows: shares_select's   │
+-- │ are_friends() check fails, so the row — and its `exercises` jsonb — is     │
+-- │ never returned. Friendship is verified in the policy (server-side), not    │
+-- │ trusted from the client.                                                   │
+-- │                                                                            │
+-- │ Note: the client also references a `friend_requests` table / an            │
+-- │ accept_friend_request RPC (a half-built request flow). These are NOT       │
+-- │ provisioned here — the active model is instant symmetric friendship via    │
+-- │ add_friend[_by_code]. Those client calls are wrapped in try/catch and      │
+-- │ degrade to no-ops, so no unsecured table is exposed.                       │
+-- └──────────────────────────────────────────────────────────────────────────┘
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -234,11 +288,16 @@ create table if not exists public.workout_shares (
   "muscleGroups" jsonb,               -- string[]
   "topExercises" jsonb,               -- [{ name, sets, volume }]
   prs jsonb,                          -- [{ exerciseName, weight, reps, kind }]
+  exercises jsonb,                    -- Phase 3: [{ name, primaryMuscle, equipment, category, sets:[{weight,reps}] }]
+                                      -- denormalized detail powering friend-profile history, copy-as-routine, and compare.
+                                      -- Exposed ONLY at this row's privacy level — raw private sets stay owner-only.
   privacy text not null default 'friends',
   "deletedAt" double precision,       -- soft-delete so un-sharing propagates
   "updatedAt" double precision,
   server_updated_at timestamptz not null default now()
 );
+-- Existing deployments: add the denormalized exercise detail column if the table predates this phase.
+alter table public.workout_shares add column if not exists exercises jsonb;
 
 create table if not exists public.reactions (
   id uuid primary key default gen_random_uuid(),
