@@ -1,18 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { useNavigate } from 'react-router-dom'
-import { Download, Upload, Info, LogOut, ChevronRight, Plus, TrendingUp, ArrowUp, ArrowDown, Trophy, Flame, Zap, Award, Dumbbell, Star, Lock, FileText, FileSpreadsheet, Bell, BellOff } from 'lucide-react'
-import { db, consolidateMeasurements, measurementUuidForType } from '../db'
-import type { Measurement } from '../types'
+import { useRef, useState } from 'react'
+import { Download, Upload, Info, FileText, FileSpreadsheet, Bell, BellOff } from 'lucide-react'
+import { db } from '../db'
 import { useSettings, setSetting, ACCENT_PALETTES, type Unit, type ThemePreference, type AccentColor } from '../lib/settings'
 import { exportWorkoutsCsv, exportRoutinesCsv } from '../lib/exportCsv'
 import { exportWorkoutsPdf, exportRoutinesPdf } from '../lib/exportPdf'
 import { useAuth } from '../store/authStore'
 import { supabaseConfigured } from '../lib/supabase'
-import { MEASUREMENT_TYPE_DEFS } from '../lib/measurementTypes'
 import BottomSheet from '../components/BottomSheet'
 import SyncIndicator from '../components/SyncIndicator'
-import { ALL_BADGES, computeAchievementStats, getEarnedBadgeIds, type Badge } from '../lib/achievements'
 
 // ── Export/import helpers ──────────────────────────────────────────────────────
 
@@ -72,40 +67,13 @@ async function importBackup(file: File): Promise<void> {
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
-  const navigate = useNavigate()
   const { units, defaultRestSeconds, theme, accentColor, notificationsEnabled } = useSettings()
-  const { user, signOut } = useAuth()
+  const { user } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [importFile, setImportFile] = useState<File | null>(null)
   const [importError, setImportError] = useState('')
   const [importDone, setImportDone] = useState(false)
   const [restoring, setRestoring] = useState(false)
-  const [addMeasurementOpen, setAddMeasurementOpen] = useState(false)
-
-  // Live list of all active measurements with their latest entry
-  const measurementsWithLatest = useLiveQuery(async () => {
-    const measurements = await db.measurements
-      .filter(m => m.deletedAt === null)
-      .sortBy('sortOrder')
-    return Promise.all(
-      measurements.map(async (m) => {
-        const entries = await db.measurementEntries
-          .where('measurementUuid').equals(m.uuid)
-          .filter(e => e.deletedAt === null)
-          .toArray()
-        entries.sort((a, b) => b.date.localeCompare(a.date))
-        const latest = entries[0] ?? null
-        const previous = entries[1] ?? null
-        return { measurement: m, latest, previous }
-      })
-    )
-  }, [])
-
-  // Ensure primaries exist and collapse any duplicate cards (e.g. weight/height
-  // created with different ids on another device). Idempotent + reactive: re-runs
-  // when the count changes, so duplicates arriving via sync are cleaned up live.
-  const measurementCount = measurementsWithLatest?.length ?? 0
-  useEffect(() => { void consolidateMeasurements() }, [measurementCount])
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null
@@ -126,40 +94,6 @@ export default function SettingsPage() {
     }
   }
 
-  async function handleAddMeasurement(type: string, label: string, unit: string) {
-    const now = Date.now()
-    const existing = await db.measurements.filter(m => m.type === type && m.deletedAt === null).count()
-    if (existing > 0) { setAddMeasurementOpen(false); return }
-    const allCount = await db.measurements.filter(m => m.deletedAt === null).count()
-    // Deterministic uuid per predefined type → the same type added on two devices
-    // converges to one card instead of duplicating after sync. put (not add) so a
-    // previously soft-deleted record of this type is revived rather than colliding.
-    const newM: Measurement = {
-      uuid: measurementUuidForType(type), type, label, unit,
-      isCustom: false, sortOrder: allCount,
-      updatedAt: now, deletedAt: null,
-    }
-    await db.measurements.put(newM)
-    setAddMeasurementOpen(false)
-    navigate(`/measurements/${newM.uuid}`)
-  }
-
-  async function handleAddCustomMeasurement(label: string, unit: string) {
-    const now = Date.now()
-    const allCount = await db.measurements.filter(m => m.deletedAt === null).count()
-    const newM: Measurement = {
-      uuid: crypto.randomUUID(), type: `custom_${Date.now()}`, label, unit,
-      isCustom: true, sortOrder: allCount,
-      updatedAt: now, deletedAt: null,
-    }
-    await db.measurements.add(newM)
-    setAddMeasurementOpen(false)
-    navigate(`/measurements/${newM.uuid}`)
-  }
-
-  const trackedTypes = new Set((measurementsWithLatest ?? []).map(m => m.measurement.type))
-  const availableToAdd = MEASUREMENT_TYPE_DEFS.filter(d => !d.primary && !trackedTypes.has(d.type))
-
   return (
     <div className="page-content">
       <h1 className="page-header">Settings</h1>
@@ -167,74 +101,10 @@ export default function SettingsPage() {
       {/* ── Auth section ─────────────────────────────────────── */}
       <div style={{ padding: '0 16px', marginBottom: 24 }}>
         {user ? (
-          <UserCard user={user} onSignOut={() => void signOut()} />
+          <UserCard user={user} />
         ) : (
           <SignInCard />
         )}
-      </div>
-
-      {/* ── Achievements ─────────────────────────────────────── */}
-      <div style={{ padding: '0 16px', marginBottom: 24 }}>
-        <div className="section-title" style={{ padding: 0, marginBottom: 10 }}>Achievements</div>
-        <BadgesSection />
-      </div>
-
-      {/* ── Measurements ─────────────────────────────────────── */}
-      <div style={{ padding: '0 16px', marginBottom: 24 }}>
-        <div className="section-title" style={{ padding: 0, marginBottom: 10 }}>Body Measurements</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {(measurementsWithLatest ?? []).map(({ measurement, latest, previous }) => (
-            <button
-              key={measurement.uuid}
-              className="card nav-card"
-              style={{ padding: '14px 16px', gap: 12 }}
-              onClick={() => navigate(`/measurements/${measurement.uuid}`)}
-            >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgb(var(--color-text-muted))', marginBottom: 3 }}>
-                  {measurement.label}
-                </div>
-                {latest ? (
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
-                    <span style={{ fontSize: 26, fontWeight: 900, letterSpacing: -1, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                      {latest.value}
-                    </span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'rgb(var(--color-text-muted))' }}>
-                      {measurement.unit}
-                    </span>
-                    {previous && (() => {
-                      const delta = latest.value - previous.value
-                      if (Math.abs(delta) < 0.01) return null
-                      const up = delta > 0
-                      return (
-                        <span style={{ fontSize: 12, fontWeight: 700, color: up ? '#ef4444' : '#22c55e', display: 'flex', alignItems: 'center', gap: 1 }}>
-                          {up ? <ArrowUp size={11} /> : <ArrowDown size={11} />}
-                          {Math.abs(Math.round(delta * 10) / 10)}
-                        </span>
-                      )
-                    })()}
-                  </div>
-                ) : (
-                  <span style={{ fontSize: 14, color: 'rgb(var(--color-text-muted))', fontStyle: 'italic' }}>No entries yet</span>
-                )}
-                {latest && (
-                  <div style={{ fontSize: 11, color: 'rgb(var(--color-text-muted))', marginTop: 2 }}>
-                    {latest.date}
-                  </div>
-                )}
-              </div>
-              <ChevronRight size={18} style={{ color: 'rgb(var(--color-text-muted))', flexShrink: 0 }} />
-            </button>
-          ))}
-
-          <button
-            className="btn btn-secondary"
-            style={{ width: '100%', marginTop: 4 }}
-            onClick={() => setAddMeasurementOpen(true)}
-          >
-            <Plus size={18} /> Add Measurement
-          </button>
-        </div>
       </div>
 
       {/* ── Preferences ──────────────────────────────────────── */}
@@ -365,15 +235,6 @@ export default function SettingsPage() {
         </div>
       </Section>
 
-      {/* ── Add measurement sheet ─────────────────────────────── */}
-      <AddMeasurementSheet
-        open={addMeasurementOpen}
-        onClose={() => setAddMeasurementOpen(false)}
-        available={availableToAdd}
-        onAdd={handleAddMeasurement}
-        onAddCustom={handleAddCustomMeasurement}
-      />
-
       {/* ── Import confirm sheet ──────────────────────────────── */}
       <BottomSheet open={importFile !== null} onClose={() => setImportFile(null)} title="Restore from backup?">
         <p style={{ margin: '0 0 8px', fontSize: 14, color: 'rgb(var(--color-text-muted))', lineHeight: 1.5 }}>
@@ -392,58 +253,9 @@ export default function SettingsPage() {
   )
 }
 
-// ── Badges ────────────────────────────────────────────────────────────────────
-
-const BADGE_ICON_MAP: Record<Badge['icon'], React.ComponentType<{ size?: number }>> = {
-  trophy: Trophy, flame: Flame, zap: Zap, award: Award, dumbbell: Dumbbell, star: Star,
-}
-
-const TIER_COLORS: Record<Badge['tier'], { bg: string; border: string; text: string }> = {
-  bronze: { bg: 'rgba(217 119 6 / 0.12)', border: 'rgba(217 119 6 / 0.35)', text: '#d97706' },
-  silver: { bg: 'rgba(148 163 184 / 0.12)', border: 'rgba(148 163 184 / 0.35)', text: '#94a3b8' },
-  gold:   { bg: 'rgba(234 179 8 / 0.12)', border: 'rgba(234 179 8 / 0.35)', text: '#eab308' },
-}
-
-function BadgesSection() {
-  const stats = useLiveQuery(() => computeAchievementStats(), [])
-  const earned = stats ? getEarnedBadgeIds(stats) : new Set<string>()
-
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-      {ALL_BADGES.map(badge => {
-        const isEarned = earned.has(badge.id)
-        const Icon = BADGE_ICON_MAP[badge.icon]
-        const colors = TIER_COLORS[badge.tier]
-        return (
-          <div
-            key={badge.id}
-            title={badge.description}
-            style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center',
-              padding: '12px 8px', borderRadius: 'var(--radius-lg)', textAlign: 'center',
-              gap: 6,
-              background: isEarned ? colors.bg : 'rgb(var(--color-surface))',
-              border: `1px solid ${isEarned ? colors.border : 'rgb(var(--color-border))'}`,
-              opacity: isEarned ? 1 : 0.55,
-              transition: 'all 0.2s ease',
-            }}
-          >
-            <div style={{ color: isEarned ? colors.text : 'rgb(var(--color-text-muted))' }}>
-              {isEarned ? <Icon size={22} /> : <Lock size={18} />}
-            </div>
-            <div style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.2, color: isEarned ? 'rgb(var(--color-text))' : 'rgb(var(--color-text-muted))' }}>
-              {badge.title}
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
 // ── Auth sub-components ────────────────────────────────────────────────────────
 
-function UserCard({ user, onSignOut }: { user: { email?: string; user_metadata?: { full_name?: string; avatar_url?: string } }; onSignOut: () => void }) {
+function UserCard({ user }: { user: { email?: string; user_metadata?: { full_name?: string; avatar_url?: string } } }) {
   const name = user.user_metadata?.full_name ?? user.email?.split('@')[0] ?? 'You'
   const email = user.email ?? ''
   const initial = name[0]?.toUpperCase() ?? '?'
@@ -463,9 +275,6 @@ function UserCard({ user, onSignOut }: { user: { email?: string; user_metadata?:
         <div style={{ fontSize: 13, color: 'rgb(var(--color-text-muted))', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>{email}</div>
         <SyncIndicator />
       </div>
-      <button className="icon-btn" style={{ color: 'rgb(var(--color-text-muted))' }} onClick={onSignOut} aria-label="sign out">
-        <LogOut size={18} />
-      </button>
     </div>
   )
 }
@@ -557,75 +366,6 @@ function OAuthButton({ icon, label, color, textColor = '#fff', onClick }: { icon
   )
 }
 
-// ── Add measurement sheet ──────────────────────────────────────────────────────
-
-interface AddMeasurementSheetProps {
-  open: boolean
-  onClose: () => void
-  available: typeof MEASUREMENT_TYPE_DEFS
-  onAdd: (type: string, label: string, unit: string) => void
-  onAddCustom: (label: string, unit: string) => void
-}
-
-function AddMeasurementSheet({ open, onClose, available, onAdd, onAddCustom }: AddMeasurementSheetProps) {
-  const [customMode, setCustomMode] = useState(false)
-  const [customLabel, setCustomLabel] = useState('')
-  const [customUnit, setCustomUnit] = useState('cm')
-
-  function reset() { setCustomMode(false); setCustomLabel(''); setCustomUnit('cm') }
-
-  return (
-    <BottomSheet open={open} onClose={() => { reset(); onClose() }} title={customMode ? 'Custom Measurement' : 'Add Measurement'}>
-      {!customMode ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {available.length === 0 ? (
-            <p style={{ color: 'rgb(var(--color-text-muted))', fontSize: 14, textAlign: 'center', padding: '16px 0' }}>
-              All predefined measurements are already added.
-            </p>
-          ) : (
-            available.map(def => (
-              <button
-                key={def.type}
-                className="pick-row"
-                onClick={() => onAdd(def.type, def.label, def.defaultUnit)}
-                style={{ justifyContent: 'space-between' }}
-              >
-                <span style={{ fontWeight: 600, fontSize: 15 }}>{def.label}</span>
-                <span style={{ fontSize: 13, color: 'rgb(var(--color-text-muted))' }}>{def.defaultUnit}</span>
-              </button>
-            ))
-          )}
-          <button className="btn btn-secondary" style={{ width: '100%', marginTop: 8 }} onClick={() => setCustomMode(true)}>
-            <TrendingUp size={16} /> Custom measurement…
-          </button>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div>
-            <label style={lbl}>Name</label>
-            <input className="input" placeholder="e.g. Neck" value={customLabel} onChange={e => setCustomLabel(e.target.value)} autoFocus />
-          </div>
-          <div>
-            <label style={lbl}>Unit</label>
-            <input className="input" placeholder="e.g. cm" value={customUnit} onChange={e => setCustomUnit(e.target.value)} />
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setCustomMode(false)}>← Back</button>
-            <button
-              className="btn btn-primary"
-              style={{ flex: 1 }}
-              disabled={!customLabel.trim() || !customUnit.trim()}
-              onClick={() => { onAddCustom(customLabel.trim(), customUnit.trim()); reset() }}
-            >
-              Add
-            </button>
-          </div>
-        </div>
-      )}
-    </BottomSheet>
-  )
-}
-
 // ── Generic sub-components ─────────────────────────────────────────────────────
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -694,7 +434,3 @@ function NotificationsRow({ enabled, onToggle }: { enabled: boolean; onToggle: (
   )
 }
 
-const lbl: React.CSSProperties = {
-  display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6,
-  color: 'rgb(var(--color-text-muted))',
-}

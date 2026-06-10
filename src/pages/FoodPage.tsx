@@ -31,6 +31,9 @@ export default function FoodPage() {
   const [recipesOpen, setRecipesOpen] = useState(false)
   const [saveMealFor, setSaveMealFor] = useState<{ type: MealType; label: string } | null>(null)
   const [saveMealName, setSaveMealName] = useState('')
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [customWaterOpen, setCustomWaterOpen] = useState(false)
+  const [customWaterVal, setCustomWaterVal] = useState('')
 
   useEffect(() => { void consolidateDailyGoals() }, [])
 
@@ -94,7 +97,13 @@ export default function FoodPage() {
           <button className="icon-btn" onClick={() => setDateStr(d => offsetDate(d, -1))} aria-label="previous day">
             <ChevronLeft size={20} />
           </button>
-          <span style={{ fontSize: 14, fontWeight: 600, minWidth: 80, textAlign: 'center' }}>{formatDateDisplay(dateStr)}</span>
+          <button
+            className="btn btn-ghost"
+            style={{ fontSize: 14, fontWeight: 600, minWidth: 80, textAlign: 'center', padding: '4px 8px' }}
+            onClick={() => setCalendarOpen(true)}
+          >
+            {formatDateDisplay(dateStr)}
+          </button>
           <button className="icon-btn" onClick={() => setDateStr(d => offsetDate(d, 1))} aria-label="next day" disabled={dateStr >= todayStr()} style={{ opacity: dateStr >= todayStr() ? 0.3 : 1 }}>
             <ChevronRight size={20} />
           </button>
@@ -140,6 +149,7 @@ export default function FoodPage() {
             <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
               <button className="btn btn-secondary" style={{ padding: '7px 11px', fontSize: 13, fontWeight: 700 }} onClick={() => void addWater(250)}>+250</button>
               <button className="btn btn-secondary" style={{ padding: '7px 11px', fontSize: 13, fontWeight: 700 }} onClick={() => void addWater(500)}>+500</button>
+              <button className="btn btn-secondary" style={{ padding: '7px 11px', fontSize: 13, fontWeight: 700 }} onClick={() => setCustomWaterOpen(true)}>Custom</button>
             </div>
           </div>
         </div>
@@ -225,6 +235,41 @@ export default function FoodPage() {
       {/* Recipe builder */}
       <RecipeBuilderSheet open={recipesOpen} onClose={() => setRecipesOpen(false)} />
 
+      {/* Calendar date picker */}
+      {calendarOpen && (
+        <CalendarPicker
+          selectedDate={dateStr}
+          onSelect={(d) => { setDateStr(d); setCalendarOpen(false) }}
+          onClose={() => setCalendarOpen(false)}
+        />
+      )}
+
+      {/* Custom water amount */}
+      <BottomSheet open={customWaterOpen} onClose={() => { setCustomWaterOpen(false); setCustomWaterVal('') }} title="Custom Water Amount">
+        <p style={{ margin: '0 0 12px', fontSize: 13, color: 'rgb(var(--color-text-muted))' }}>Enter amount in ml:</p>
+        <input
+          className="input"
+          type="number"
+          inputMode="numeric"
+          placeholder="e.g. 350"
+          value={customWaterVal}
+          onChange={e => setCustomWaterVal(e.target.value)}
+          autoFocus
+          style={{ marginBottom: 16 }}
+        />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { setCustomWaterOpen(false); setCustomWaterVal('') }}>Cancel</button>
+          <button
+            className="btn btn-primary"
+            style={{ flex: 1 }}
+            disabled={!customWaterVal || parseInt(customWaterVal) <= 0}
+            onClick={() => { void addWater(parseInt(customWaterVal)); setCustomWaterOpen(false); setCustomWaterVal('') }}
+          >
+            Add
+          </button>
+        </div>
+      </BottomSheet>
+
       {/* Save as meal sheet */}
       <BottomSheet open={saveMealFor !== null} onClose={() => setSaveMealFor(null)} title={`Save ${saveMealFor?.label ?? ''} as Meal`}>
         <p style={{ margin: '0 0 12px', fontSize: 13, color: 'rgb(var(--color-text-muted))' }}>
@@ -295,6 +340,88 @@ function EditGoalsSheet({ date, goal, onClose }: EditGoalsProps) {
           <button className="btn btn-secondary" style={{ flex: 1 }} onClick={onClose}>Cancel</button>
           <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Save Goals'}</button>
         </div>
+      </div>
+    </BottomSheet>
+  )
+}
+
+// ── Calendar picker ────────────────────────────────────────────────────────────
+
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
+const DAY_NAMES = ['Mo','Tu','We','Th','Fr','Sa','Su']
+
+function CalendarPicker({ selectedDate, onSelect, onClose }: { selectedDate: string; onSelect: (date: string) => void; onClose: () => void }) {
+  const [y, m] = selectedDate.split('-').map(Number)
+  const [viewYear, setViewYear] = useState(y)
+  const [viewMonth, setViewMonth] = useState(m) // 1-indexed
+
+  const today = todayStr()
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth() + 1
+
+  function prevMonth() {
+    if (viewMonth === 1) { setViewYear(vy => vy - 1); setViewMonth(12) }
+    else setViewMonth(vm => vm - 1)
+  }
+
+  function nextMonth() {
+    if (viewYear > currentYear || (viewYear === currentYear && viewMonth >= currentMonth)) return
+    if (viewMonth === 12) { setViewYear(vy => vy + 1); setViewMonth(1) }
+    else setViewMonth(vm => vm + 1)
+  }
+
+  const daysInMonth = new Date(viewYear, viewMonth, 0).getDate()
+  // Monday-first offset: Sun=0→6, Mon=1→0, ..., Sat=6→5
+  const offset = (new Date(viewYear, viewMonth - 1, 1).getDay() + 6) % 7
+  const canGoNext = !(viewYear === currentYear && viewMonth >= currentMonth) && !(viewYear > currentYear)
+
+  return (
+    <BottomSheet open={true} onClose={onClose} title={`${MONTH_NAMES[viewMonth - 1]} ${viewYear}`}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <button className="icon-btn" onClick={prevMonth} aria-label="previous month">
+          <ChevronLeft size={20} />
+        </button>
+        <span style={{ fontWeight: 700, fontSize: 16 }}>{MONTH_NAMES[viewMonth - 1]} {viewYear}</span>
+        <button className="icon-btn" onClick={nextMonth} disabled={!canGoNext} style={{ opacity: canGoNext ? 1 : 0.3 }} aria-label="next month">
+          <ChevronRight size={20} />
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 4 }}>
+        {DAY_NAMES.map(d => (
+          <div key={d} style={{ textAlign: 'center', fontSize: 11, fontWeight: 700, color: 'rgb(var(--color-text-muted))', padding: '4px 0' }}>{d}</div>
+        ))}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+        {Array.from({ length: offset }, (_, i) => <div key={`e${i}`} />)}
+        {Array.from({ length: daysInMonth }, (_, i) => {
+          const day = i + 1
+          const dayStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+          const isSelected = dayStr === selectedDate
+          const isFuture = dayStr > today
+          const isToday = dayStr === today
+          return (
+            <button
+              key={day}
+              disabled={isFuture}
+              onClick={() => onSelect(dayStr)}
+              style={{
+                padding: '8px 0', textAlign: 'center', fontSize: 14,
+                fontWeight: isSelected || isToday ? 700 : 400,
+                borderRadius: 'var(--radius-sm)', border: 'none',
+                cursor: isFuture ? 'default' : 'pointer',
+                background: isSelected ? 'rgb(var(--color-accent))' : 'transparent',
+                color: isFuture ? 'rgb(var(--color-border))' : isSelected ? '#fff' : isToday ? 'rgb(var(--color-accent))' : 'rgb(var(--color-text))',
+                opacity: isFuture ? 0.4 : 1,
+                fontFamily: 'inherit',
+              }}
+            >
+              {day}
+            </button>
+          )
+        })}
       </div>
     </BottomSheet>
   )

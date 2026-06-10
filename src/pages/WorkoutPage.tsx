@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Play, BookOpen, History, Flame, ChevronRight, Trophy, TrendingUp, ListOrdered } from 'lucide-react'
+import { Plus, Play, Flame, ChevronRight, Trophy, ListOrdered } from 'lucide-react'
 import { db } from '../db'
 import { useSession } from '../store/sessionStore'
 import { useSettings } from '../lib/settings'
@@ -110,7 +110,7 @@ export default function WorkoutPage() {
       {/* Greeting — single line: "Good morning, Andrea" */}
       <div style={{ padding: '20px 16px 4px' }}>
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, letterSpacing: -0.6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {greeting}, <span style={{ color: 'rgb(var(--color-accent))' }}>{firstName}</span>
+          {greeting} <span style={{ color: 'rgb(var(--color-accent))',marginLeft: '20px' }}>{firstName}</span>
         </h1>
       </div>
 
@@ -188,42 +188,6 @@ export default function WorkoutPage() {
           </button>
         )}
 
-        {/* ─── Progress + Library + History nav cards ──────── */}
-        <button className="card nav-card" style={{ padding: '14px 16px' }} onClick={() => navigate('/progress')}>
-          <div style={{ ...iconWrap, background: 'rgba(34 197 94 / 0.12)' }}>
-            <TrendingUp size={20} style={{ color: 'rgb(var(--color-accent))' }} />
-          </div>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 15 }}>Progress &amp; Records</div>
-            <div style={{ fontSize: 13, color: 'rgb(var(--color-text-muted))', marginTop: 2 }}>
-              Strength charts, volume and PRs
-            </div>
-          </div>
-        </button>
-
-        <button className="card nav-card" style={{ padding: '14px 16px' }} onClick={() => navigate('/exercises')}>
-          <div style={iconWrap}>
-            <BookOpen size={20} style={{ color: 'rgb(var(--color-accent))' }} />
-          </div>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 15 }}>Exercise Library</div>
-            <div style={{ fontSize: 13, color: 'rgb(var(--color-text-muted))', marginTop: 2 }}>
-              Browse and add custom exercises
-            </div>
-          </div>
-        </button>
-
-        <button className="card nav-card" style={{ padding: '14px 16px' }} onClick={() => navigate('/history')}>
-          <div style={{ ...iconWrap, background: 'rgba(34 197 94 / 0.08)' }}>
-            <History size={20} style={{ color: 'rgb(var(--color-accent))' }} />
-          </div>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 15 }}>Workout History</div>
-            <div style={{ fontSize: 13, color: 'rgb(var(--color-text-muted))', marginTop: 2 }}>
-              Review past workouts and volume
-            </div>
-          </div>
-        </button>
 
       </div>
     </div>
@@ -266,13 +230,3 @@ const sectionLabel: React.CSSProperties = {
   marginBottom: 8,
 }
 
-const iconWrap: React.CSSProperties = {
-  width: 44,
-  height: 44,
-  borderRadius: 'var(--radius-md)',
-  background: 'rgba(34 197 94 / 0.12)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  flexShrink: 0,
-}
