@@ -1,14 +1,14 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Users, Trophy, Rss, Flame, Dumbbell, UserPlus, Check, X } from 'lucide-react'
+import { Users, Trophy, Rss, Flame, Dumbbell, User, UserPlus, Check, X } from 'lucide-react'
 import { useAuth } from '../store/authStore'
 import { supabaseConfigured } from '../lib/supabase'
 import { useTier } from '../lib/tier'
 import { useSettings } from '../lib/settings'
 import {
   fetchMyProfile, getFeed, getLeaderboard, createProfile, normalizeUsername, toggleReaction,
-  getPendingRequests, acceptRequest, declineRequest,
-  type SocialProfile, type FeedItem, type LeaderboardRow, type FriendRequest,
+  getPendingRequests, acceptRequest, declineRequest, getFriends,
+  type SocialProfile, type FeedItem, type LeaderboardRow, type FriendRequest, type Friend,
 } from '../lib/social'
 import { formatVolume } from '../lib/format'
 import FeedCard from '../components/FeedCard'
@@ -40,8 +40,10 @@ export default function SocialPage() {
   const [tab, setTab] = useState<Tab>('feed')
   const [metric, setMetric] = useState<Metric>('volume')
   const [friendsOpen, setFriendsOpen] = useState(false)
-  const [requestsOpen, setRequestsOpen] = useState(false)
+  const [panelOpen, setPanelOpen] = useState(false)
   const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([])
+  const [friends, setFriends] = useState<Friend[]>([])
+  const [friendsLoading, setFriendsLoading] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const loadProfile = useCallback(async () => {
@@ -63,8 +65,14 @@ export default function SocialPage() {
     setPendingRequests(await getPendingRequests())
   }, [user])
 
+  const loadFriends = useCallback(async () => {
+    if (!supabaseConfigured || !user) return
+    setFriendsLoading(true)
+    try { setFriends(await getFriends()) } finally { setFriendsLoading(false) }
+  }, [user])
+
   useEffect(() => { void loadProfile() }, [loadProfile])
-  useEffect(() => { if (profile) { void loadSocial(); void loadRequests() } }, [profile, loadSocial, loadRequests])
+  useEffect(() => { if (profile) { void loadSocial(); void loadRequests(); void loadFriends() } }, [profile, loadSocial, loadRequests, loadFriends])
 
   async function handleReact(item: FeedItem) {
     const next = !item.reactedByMe
@@ -113,14 +121,14 @@ export default function SocialPage() {
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: -0.5 }}>Friends</h1>
           <div style={{ fontSize: 13, color: 'rgb(var(--color-text-muted))' }}>@{profile.username}</div>
         </div>
-        {/* Pending requests icon */}
+        {/* Friends panel icon */}
         <button
           className="icon-btn"
-          onClick={() => setRequestsOpen(true)}
-          aria-label="friend requests"
+          onClick={() => setPanelOpen(true)}
+          aria-label="friends"
           style={{ position: 'relative' }}
         >
-          <UserPlus size={22} />
+          <User size={22} />
           {pendingRequests.length > 0 && (
             <span style={{
               position: 'absolute', top: 0, right: 0,
@@ -161,65 +169,97 @@ export default function SocialPage() {
         open={friendsOpen}
         onClose={() => setFriendsOpen(false)}
         profile={profile}
-        onChanged={() => { void loadProfile(); void loadSocial() }}
+        onChanged={() => { void loadProfile(); void loadSocial(); void loadFriends() }}
       />
 
-      {/* Friend requests panel */}
+      {/* Friends panel */}
       <BottomSheet
-        open={requestsOpen}
-        onClose={() => setRequestsOpen(false)}
-        title="Friend Requests"
+        open={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        title="Friends"
+        style={{ minHeight: '85vh', display: 'flex', flexDirection: 'column' }}
       >
-        {pendingRequests.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '20px 0', color: 'rgb(var(--color-text-muted))' }}>
-            <UserPlus size={32} style={{ opacity: 0.4, marginBottom: 10 }} />
-            <div style={{ fontSize: 14 }}>No pending requests</div>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 16 }}>
-            {pendingRequests.map(req => (
-              <div key={req.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid rgb(var(--color-border))' }}>
-                <Avatar name={req.fromProfile.displayName} color={req.fromProfile.avatarColor} size={36} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{req.fromProfile.displayName}</div>
-                  <div style={{ fontSize: 12, color: 'rgb(var(--color-text-muted))' }}>@{req.fromProfile.username}</div>
-                </div>
-                <button
-                  className="icon-btn"
-                  style={{ color: '#22c55e' }}
-                  aria-label="accept"
-                  onClick={async () => {
-                    try {
-                      await acceptRequest(req.id)
-                      setPendingRequests(prev => prev.filter(r => r.id !== req.id))
-                      void loadProfile(); void loadSocial()
-                    } catch { /* silent */ }
-                  }}
-                >
-                  <Check size={18} />
-                </button>
-                <button
-                  className="icon-btn"
-                  style={{ color: '#ef4444' }}
-                  aria-label="decline"
-                  onClick={async () => {
-                    await declineRequest(req.id)
-                    setPendingRequests(prev => prev.filter(r => r.id !== req.id))
-                  }}
-                >
-                  <X size={18} />
-                </button>
+        {/* Add friend button */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+          <button
+            className="btn btn-secondary"
+            style={{ gap: 8, fontSize: 14 }}
+            onClick={() => { setPanelOpen(false); setFriendsOpen(true) }}
+          >
+            <UserPlus size={18} /> Add friend
+          </button>
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {/* Pending requests */}
+          {pendingRequests.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={panelSectionLabel}>Pending requests ({pendingRequests.length})</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {pendingRequests.map(req => (
+                  <div key={req.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid rgb(var(--color-border))' }}>
+                    <Avatar name={req.fromProfile.displayName} color={req.fromProfile.avatarColor} size={38} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{req.fromProfile.displayName}</div>
+                      <div style={{ fontSize: 12, color: 'rgb(var(--color-text-muted))' }}>@{req.fromProfile.username}</div>
+                    </div>
+                    <button
+                      className="icon-btn"
+                      style={{ color: '#22c55e' }}
+                      aria-label="accept"
+                      onClick={async () => {
+                        try {
+                          await acceptRequest(req.id)
+                          setPendingRequests(prev => prev.filter(r => r.id !== req.id))
+                          void loadProfile(); void loadSocial(); void loadFriends()
+                        } catch { /* silent */ }
+                      }}
+                    >
+                      <Check size={18} />
+                    </button>
+                    <button
+                      className="icon-btn"
+                      style={{ color: '#ef4444' }}
+                      aria-label="decline"
+                      onClick={async () => {
+                        await declineRequest(req.id)
+                        setPendingRequests(prev => prev.filter(r => r.id !== req.id))
+                      }}
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+          )}
+
+          {/* Friends list */}
+          <div>
+            <div style={panelSectionLabel}>My friends ({friends.length})</div>
+            {friendsLoading ? (
+              <div style={{ textAlign: 'center', padding: '24px 0', color: 'rgb(var(--color-text-muted))', fontSize: 14 }}>Loading…</div>
+            ) : friends.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '32px 16px', color: 'rgb(var(--color-text-muted))' }}>
+                <Users size={36} style={{ opacity: 0.4, marginBottom: 10 }} />
+                <div style={{ fontWeight: 700, fontSize: 15, color: 'rgb(var(--color-text))', marginBottom: 6 }}>No friends yet</div>
+                <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>Add one with the button above.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {friends.map((f: Friend) => (
+                  <div key={f.friendshipId} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderTop: '1px solid rgb(var(--color-border))' }}>
+                    <Avatar name={f.profile.displayName} color={f.profile.avatarColor} size={40} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 15 }}>{f.profile.displayName}</div>
+                      <div style={{ fontSize: 13, color: 'rgb(var(--color-text-muted))' }}>@{f.profile.username}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-        <button
-          className="btn btn-secondary"
-          style={{ width: '100%', gap: 8 }}
-          onClick={() => { setRequestsOpen(false); setFriendsOpen(true) }}
-        >
-          <Users size={18} /> Manage Friends
-        </button>
+        </div>
       </BottomSheet>
     </div>
   )
@@ -362,3 +402,4 @@ function TabBtn({ active, onClick, icon, label }: { active: boolean; onClick: ()
 }
 
 const lbl: React.CSSProperties = { display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'rgb(var(--color-text-muted))' }
+const panelSectionLabel: React.CSSProperties = { fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgb(var(--color-text-muted))', marginBottom: 8 }
