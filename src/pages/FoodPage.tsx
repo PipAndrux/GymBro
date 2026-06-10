@@ -148,8 +148,7 @@ export default function FoodPage() {
             </div>
             <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
               <button className="btn btn-secondary" style={{ padding: '7px 11px', fontSize: 13, fontWeight: 700 }} onClick={() => void addWater(250)}>+250</button>
-              <button className="btn btn-secondary" style={{ padding: '7px 11px', fontSize: 13, fontWeight: 700 }} onClick={() => void addWater(500)}>+500</button>
-              <button className="btn btn-secondary" style={{ padding: '7px 11px', fontSize: 13, fontWeight: 700 }} onClick={() => setCustomWaterOpen(true)}>Custom</button>
+              <button className="btn btn-secondary" style={{ padding: '7px 14px', fontSize: 18, fontWeight: 700, lineHeight: 1 }} onClick={() => setCustomWaterOpen(true)}>+</button>
             </div>
           </div>
         </div>

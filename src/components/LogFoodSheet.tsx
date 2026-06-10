@@ -141,7 +141,7 @@ export default function LogFoodSheet({ open, onClose, date, mealType, mealLabel,
 
   return (
     <>
-      <BottomSheet open={open} onClose={onClose} title={sheetTitle}>
+      <BottomSheet open={open} onClose={onClose} title={sheetTitle} style={{ minHeight: '85dvh' }}>
         {/* ── PICK MODE ── */}
         {mode === 'pick' && (
           <>

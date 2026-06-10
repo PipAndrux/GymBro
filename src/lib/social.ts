@@ -71,6 +71,12 @@ export interface LeaderboardRow {
   streak: number
 }
 
+export interface FriendRequest {
+  id: string
+  fromProfile: FriendProfile
+  createdAt: number
+}
+
 export const AVATAR_COLORS = ['#22c55e', '#3b82f6', '#f97316', '#a855f7', '#ec4899', '#14b8a6', '#eab308', '#ef4444']
 
 const PROFILE_CACHE_KEY = 'social_profile'
@@ -258,6 +264,53 @@ export async function getFriends(): Promise<Friend[]> {
 export async function removeFriend(friendshipId: string): Promise<void> {
   if (!supabase) return
   await supabase.from('friendships').delete().eq('id', friendshipId)
+}
+
+/** Fetch pending incoming friend requests for the signed-in user. */
+export async function getPendingRequests(): Promise<FriendRequest[]> {
+  const me = await uid()
+  if (!supabase || !me) return []
+  try {
+    const { data, error } = await supabase
+      .from('friend_requests')
+      .select('id, from_user, created_at')
+      .eq('to_user', me)
+      .is('accepted_at', null)
+      .is('declined_at', null)
+    if (error || !data) return []
+    const rows = data as { id: string; from_user: string; created_at: number }[]
+    if (rows.length === 0) return []
+    const fromIds = rows.map(r => r.from_user)
+    const { data: profs } = await supabase
+      .from('profiles')
+      .select('id, username, displayName, avatarColor')
+      .in('id', fromIds)
+    const profMap = new Map<string, FriendProfile>()
+    for (const p of (profs ?? []) as Record<string, unknown>[]) {
+      const fp = rowToFriendProfile(p)
+      profMap.set(fp.id, fp)
+    }
+    return rows.map(r => ({
+      id: r.id,
+      fromProfile: profMap.get(r.from_user) ?? {
+        id: r.from_user, username: 'unknown', displayName: 'Unknown', avatarColor: AVATAR_COLORS[0],
+      },
+      createdAt: r.created_at,
+    }))
+  } catch {
+    return []
+  }
+}
+
+export async function acceptRequest(requestId: string): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase.rpc('accept_friend_request', { request_id: requestId })
+  if (error) throw new Error(error.message)
+}
+
+export async function declineRequest(requestId: string): Promise<void> {
+  if (!supabase) return
+  await supabase.from('friend_requests').update({ declined_at: Date.now() }).eq('id', requestId)
 }
 
 // ── Activity feed ─────────────────────────────────────────────────────────────

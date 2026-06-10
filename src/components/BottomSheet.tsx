@@ -6,6 +6,7 @@ interface BottomSheetProps {
   onClose: () => void
   children: ReactNode
   title?: string
+  style?: React.CSSProperties
 }
 
 // Ref-counted body lock: keeps `html.sheet-open` set while ANY sheet is open, so
@@ -21,7 +22,7 @@ function setBodyLock(locked: boolean) {
   }
 }
 
-export default function BottomSheet({ open, onClose, children, title }: BottomSheetProps) {
+export default function BottomSheet({ open, onClose, children, title, style }: BottomSheetProps) {
   useEffect(() => {
     if (!open) return
     setBodyLock(true)
@@ -46,6 +47,7 @@ export default function BottomSheet({ open, onClose, children, title }: BottomSh
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            style={style}
           >
             <div className="sheet-handle" />
             {title && (

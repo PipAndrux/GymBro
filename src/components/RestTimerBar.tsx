@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Minus, Plus } from 'lucide-react'
+import { Minus, Plus, ChevronUp, ChevronDown } from 'lucide-react'
 import { useSession } from '../store/sessionStore'
 import { useNow } from '../lib/useNow'
 import { playBeep, vibrate } from '../lib/feedback'
@@ -30,6 +30,19 @@ export default function RestTimerBar() {
   const now = useNow(!!restTimer, 100)
   const firedRef = useRef<number | null>(null)
   const [showGo, setShowGo] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+
+  // Collapse back to compact bar whenever a new timer starts
+  const prevEndAtRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (restTimer && restTimer.endAt !== prevEndAtRef.current) {
+      setExpanded(false)
+      prevEndAtRef.current = restTimer.endAt
+    }
+    if (!restTimer) {
+      prevEndAtRef.current = null
+    }
+  }, [restTimer])
 
   useEffect(() => {
     if (!restTimer) return
@@ -92,16 +105,72 @@ export default function RestTimerBar() {
         )}
       </AnimatePresence>
 
-      {/* Large circular rest timer card */}
       <AnimatePresence>
-        {restTimer && (
+        {restTimer && !expanded && (
+          // ── Compact bar ──────────────────────────────────────────
+          <motion.button
+            key="compact"
+            initial={{ y: 60, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 60, opacity: 0 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+            onClick={() => setExpanded(true)}
+            style={{
+              position: 'fixed',
+              left: 12, right: 12,
+              bottom: 'calc(var(--tab-bar-height) + var(--safe-bottom) + 8px)',
+              background: 'rgb(var(--color-surface))',
+              border: `1px solid ${reached ? 'rgba(34 197 94 / 0.5)' : 'rgba(245 158 11 / 0.4)'}`,
+              borderRadius: 'var(--radius-xl)',
+              boxShadow: '0 8px 24px rgba(0 0 0 / 0.45)',
+              zIndex: 60,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '10px 16px',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            <span style={{
+              fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
+              textTransform: 'uppercase', color: 'rgb(var(--color-text-muted))',
+            }}>
+              {reached ? 'REST OVER' : 'REST'}
+            </span>
+            <span style={{
+              fontSize: 22, fontWeight: 900, fontVariantNumeric: 'tabular-nums',
+              color: reached ? '#22c55e' : '#f59e0b', letterSpacing: -0.5,
+            }}>
+              {reached ? 'GO!' : fmt(remaining)}
+            </span>
+            <ChevronUp size={18} style={{ color: 'rgb(var(--color-text-muted))' }} />
+          </motion.button>
+        )}
+
+        {restTimer && expanded && (
+          // ── Full circular timer card ─────────────────────────────
           <motion.div
+            key="expanded"
             className="rest-timer-card"
             initial={{ y: 320, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 320, opacity: 0 }}
             transition={{ type: 'spring', damping: 28, stiffness: 300 }}
           >
+            {/* Collapse button */}
+            <button
+              onClick={() => setExpanded(false)}
+              aria-label="collapse timer"
+              style={{
+                position: 'absolute', top: 10, right: 12,
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'rgb(var(--color-text-muted))', padding: 6,
+                fontFamily: 'inherit',
+              }}
+            >
+              <ChevronDown size={18} />
+            </button>
+
             <div className="rest-timer-inner">
               {/* Circular countdown ring */}
               <div style={{ position: 'relative', width: 168, height: 168, flexShrink: 0 }}>
